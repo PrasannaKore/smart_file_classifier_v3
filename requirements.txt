@@ -1,0 +1,5 @@
+# requirements.txt
+# Core dependencies required to run the Smart File Classifier.
+pyside6
+click
+tqdm

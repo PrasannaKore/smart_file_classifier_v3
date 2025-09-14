@@ -1,0 +1,19 @@
+<!-- resources.qrc -->
+<!DOCTYPE RCC>
+<RCC version="1.0">
+<qresource prefix="/icons">
+    <file alias="app_icon.svg">assets/icons/app_icon.svg</file>
+    <file alias="start.svg">assets/icons/start.svg</file>
+    <file alias="undo.svg">assets/icons/undo.svg</file>
+    <file alias="folder-open.svg">assets/icons/folder-open.svg</file>
+    <file alias="preview.svg">assets/icons/preview.svg</file>
+    <file alias="pause.svg">assets/icons/pause.svg</file>
+    <file alias="resume.svg">assets/icons/resume.svg</file>
+    <file alias="cancel.svg">assets/icons/cancel.svg</file>
+    <file alias="down-arrow.svg">assets/icons/down-arrow.svg</file>
+    <!-- Add an entry for every single icon -->
+</qresource>
+<qresource prefix="/styles">
+    <file alias="main.qss">assets/styles/main_style.qss</file>
+</qresource>
+</RCC>

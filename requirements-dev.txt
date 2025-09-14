@@ -1,0 +1,8 @@
+# requirements-dev.txt
+# All dependencies for development, including testing.
+# This file installs the production dependencies from requirements.txt as well.
+
+-r requirements.txt
+
+# --- Development & Testing Dependencies ---
+pytest

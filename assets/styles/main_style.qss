@@ -1,0 +1,106 @@
+/* assets/styles/main_style.qss */
+
+QWidget {
+    background-color: #2E3440;
+    color: #ECEFF4;
+    font-family: Segoe UI, Arial, sans-serif;
+    font-size: 10pt;
+}
+
+QMainWindow {
+    background-color: #2E3440;
+}
+
+QLabel {
+    background-color: transparent;
+    padding: 2px;
+}
+
+QLineEdit {
+    background-color: #3B4252;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    padding: 5px;
+    color: #D8DEE9;
+}
+
+QLineEdit:focus {
+    border: 1px solid #88C0D0;
+}
+
+QPushButton {
+    background-color: #5E81AC;
+    color: #ECEFF4;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-weight: bold;
+    text-align: center;
+}
+
+QPushButton:hover {
+    background-color: #81A1C1;
+}
+
+QPushButton:pressed {
+    background-color: #88C0D0;
+}
+
+QPushButton:disabled {
+    background-color: #4C566A;
+    color: #6a7387;
+}
+
+QComboBox {
+    background-color: #3B4252;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    padding: 5px;
+    padding-left: 10px;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border-left-width: 1px;
+    border-left-color: #4C566A;
+    border-left-style: solid;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+QComboBox::down-arrow {
+    image: url(./assets/icons/down-arrow.svg); /* Assumes a down-arrow.svg exists */
+}
+
+QComboBox QAbstractItemView {
+    background-color: #3B4252;
+    border: 1px solid #4C566A;
+    selection-background-color: #5E81AC;
+}
+
+QProgressBar {
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    text-align: center;
+    color: #ECEFF4;
+}
+
+QProgressBar::chunk {
+    background-color: #A3BE8C;
+    border-radius: 3px;
+}
+
+QTextEdit, QListView {
+    background-color: #3B4252;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    color: #D8DEE9;
+    font-family: Consolas, Courier New, monospace;
+}
+
+QFrame {
+    border: 1px solid #434C5E;
+    border-radius: 4px;
+}
