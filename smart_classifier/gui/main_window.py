@@ -168,7 +168,7 @@ class MainWindow(QMainWindow):
         self.start_button.clicked.connect(self.start_classification)
         self.dry_run_button.clicked.connect(self.handle_dry_run)
         self.undo_button.clicked.connect(self.handle_undo)
-        # TODO: Connect Pause, Resume, Cancel buttons when logic is implemented
+        # """TODO_: Connect Pause, Resume, Cancel buttons when logic is implemented"""
 
     def initialize_engine(self):
         """Initializes the classification engine and handles potential errors."""
