@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from .file_operations import DuplicateStrategy, safe_move
 from .undo_manager import UndoManager
 from smart_classifier.utils.thread_manager import get_optimal_thread_count
+import threading
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -40,6 +41,12 @@ class ClassificationEngine:
         # This dictionary will hold our parsed rules, mapping extension -> category
         # e.g., {".pdf": "Documents & Text", ".jpg": "Images & Graphics"}
         self.classification_rules: Dict[str, str] = {}
+
+        # --- NEW: State Management for Threading ---
+        self._is_cancelled = False
+        self._pause_event = threading.Event()
+        self._pause_event.set()  # Initially, the event is set (meaning: not paused)
+
         self._load_classification_rules()
 
     def _load_classification_rules(self):
@@ -152,6 +159,7 @@ class ClassificationEngine:
         logger.info(f"Generated plan for {len(plan)} file operations.")
         return plan
 
+
     def execute_plan(
             self,
             plan: List[Tuple[Path, Path]],
@@ -174,47 +182,43 @@ class ClassificationEngine:
         Executes the move plan in parallel using a pool of worker threads
         for maximum performance and logs transactions for undo.
         """
+        """
+            Executes the move plan, now with support for Pause, Resume, and Cancel.
+            """
         total_files = len(plan)
         if total_files == 0:
             logger.info("Plan is empty. Nothing to execute.")
             return
 
+        self.reset_state()  # Ensure flags are fresh for the new run
         logger.info(f"Executing plan for {total_files} files with strategy: {duplicate_strategy.name}")
 
         UndoManager.clear_log()
 
-        # Determine the number of threads to use.
         max_workers = get_optimal_thread_count()
         files_processed = 0
 
-        # The ThreadPoolExecutor manages the lifecycle of the threads for us.
-        # It's a safe and efficient way to perform parallel operations.
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # We submit each file move operation to the thread pool.
-            # executor.submit() returns a 'future' object, which represents
-            # the pending result of the operation.
             future_to_source = {
                 executor.submit(safe_move, source_path, dest_dir, duplicate_strategy): source_path
                 for source_path, dest_dir in plan
             }
 
-            # as_completed() gives us the results of the futures as they finish,
-            # not in the order they were submitted. This is perfect for progress updates.
             for future in as_completed(future_to_source):
+                # --- NEW: Check for Pause/Cancel signals before each file ---
+                self._pause_event.wait()  # If paused, this line will block until resumed
+                if self._is_cancelled:
+                    logger.warning("Operation cancelled by user. Halting processing.")
+                    break  # Exit the loop immediately
+                # --- END NEW CODE ---
+
                 source_path = future_to_source[future]
                 try:
-                    # Get the result from the completed future.
-                    status, final_dest_path = future.result()
-
+                    # We add a timeout to result() to make it responsive to cancellation
+                    status, final_dest_path = future.result(timeout=0.1)
                     if status == "MOVED":
-                        # This part remains thread-safe because our UndoManager
-                        # uses a read-modify-write pattern on the JSON file,
-                        # though for extreme performance, a queue-based logger would be better.
-                        # For this project, file-based locking is sufficient.
                         UndoManager.log_move(source_path, final_dest_path)
-
                 except Exception as e:
-                    # If the safe_move function raised an unexpected exception.
                     status = "ERROR"
                     logger.error(f"Error processing {source_path} in thread: {e}")
 
@@ -224,3 +228,24 @@ class ClassificationEngine:
                     progress_callback(progress_percentage, source_path.name, status)
 
         logger.info("Execution of plan complete.")
+
+    def pause(self):
+        """Signals the running operation to pause."""
+        self._pause_event.clear()
+        logger.info("Pause signal sent to classification engine.")
+
+    def resume(self):
+        """Signals the paused operation to resume."""
+        self._pause_event.set()
+        logger.info("Resume signal sent to classification engine.")
+
+    def cancel(self):
+        """Signals the running operation to cancel."""
+        self._is_cancelled = True
+        self._pause_event.set()  # Also un-pause if cancelling, so the loop can exit
+        logger.info("Cancel signal sent to classification engine.")
+
+    def reset_state(self):
+        """Resets the state flags for a new operation."""
+        self._is_cancelled = False
+        self._pause_event.set()

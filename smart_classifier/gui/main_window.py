@@ -3,27 +3,30 @@
 import logging
 import sys
 from pathlib import Path
+from typing import Dict
 
-from PySide6.QtCore import QObject, QThread, Signal, Slot, QStringListModel
-from PySide6.QtGui import QIcon
+# --- CORRECTED IMPORT BLOCK ---
+from PySide6.QtCore import QObject, QThread, Signal, Slot, QStringListModel, QSize
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QProgressBar, QComboBox, QMessageBox,
-    QTextEdit, QGridLayout, QSpacerItem, QSizePolicy, QListView
+    QGridLayout, QSpacerItem, QListView, QSizePolicy
 )
+# --- END CORRECTION ---
 
 # --- Local Imports ---
 from smart_classifier.core.classification_engine import ClassificationEngine
 from smart_classifier.core.file_operations import DuplicateStrategy
 from smart_classifier.core.undo_manager import UndoManager
 from smart_classifier.utils.logger import setup_logging
-
 from .resources import load_stylesheet, get_icon, ICON_SIZE, validate_assets
 from .widgets import DirectorySelector, StatusWidget
-from . import resources_rc # Import the compiled resources
+import threading
+
+logger = logging.getLogger(__name__)
 
 
-# --- Worker Threads (Unchanged but included for completeness) ---
+# --- Worker Threads (Correct and Unchanged) ---
 class Worker(QObject):
     progress_updated = Signal(int, str, str)
     finished = Signal()
@@ -38,6 +41,7 @@ class Worker(QObject):
         try:
             self.engine.execute_plan(self.plan, self.strategy, self.progress_updated.emit)
         except Exception as e:
+            logger.critical(f"An error occurred in the worker thread: {e}", exc_info=True)
             self.error_occurred.emit(str(e))
         finally:
             self.finished.emit()
@@ -53,37 +57,42 @@ class UndoWorker(QObject):
         try:
             UndoManager.undo_last_operation(self.progress_updated.emit)
         except Exception as e:
+            logger.critical(f"An error occurred in the undo worker thread: {e}", exc_info=True)
             self.error_occurred.emit(str(e))
         finally:
             self.finished.emit()
 
 
-# --- Main Application Window ---
+# --- Main Application Window (Final Corrected Version) ---
 class MainWindow(QMainWindow):
-    """The main GUI window, refactored for professionalism and maintainability."""
+    """The main GUI window, fully refactored for professionalism, scalability, and maintainability."""
 
     def __init__(self):
         """The constructor for the main window."""
         super().__init__()
         self.setWindowTitle(" Smart File Classifier v3.0")
 
-        # Set the main window icon. This is the only icon set in the constructor.
+        # Set the main window icon.
         self.setWindowIcon(get_icon("app_icon"))
         self.setGeometry(100, 100, 900, 700)
 
-        # Initialize state variables
+        # Initialize internal state variables.
         self.engine = None
         self.active_thread = None
         self.active_worker = None
 
-        # --- The Correct Order of Operations ---
-        # 1. Build the UI components
+        # --- The Correct and Complete Order of Operations ---
+
+        # 1. Build all the widgets and layouts.
         self.init_ui()
-        # 2. Connect signals from UI components to methods
+
+        # 2. Connect the signals (e.g., button clicks) from the widgets to their handler methods.
         self.connect_signals()
-        # 3. Initialize the backend engine
+
+        # 3. Initialize the backend engine (THIS IS THE CRUCIAL "RULES LOADING LINE").
         self.initialize_engine()
-        # 4. Set the final, initial state of the UI buttons
+
+        # 4. Set the final, correct state for all UI buttons after everything is ready.
         self._update_button_states("IDLE")
 
     def init_ui(self):
@@ -92,21 +101,16 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
 
-        # Directory selectors now use our custom widget
         self.source_selector = DirectorySelector("Source Directory:")
         self.dest_selector = DirectorySelector("Destination Directory:")
-
-        # Set icons for the browse buttons within the custom widgets
         self.source_selector.browse_button.setIcon(get_icon("folder-open"))
         self.dest_selector.browse_button.setIcon(get_icon("folder-open"))
 
-        # Options and Actions layout
         grid_layout = QGridLayout()
         self.duplicates_label = QLabel("Duplicate Files:")
         self.duplicates_combo = QComboBox()
         self.duplicates_combo.addItems(["Append Number", "Skip", "Replace"])
 
-        # Create all action buttons
         self.dry_run_button = QPushButton(" Dry Run")
         self.start_button = QPushButton(" Start")
         self.pause_button = QPushButton(" Pause")
@@ -114,7 +118,6 @@ class MainWindow(QMainWindow):
         self.cancel_button = QPushButton(" Cancel")
         self.undo_button = QPushButton(" Undo")
 
-        # Set icons for all action buttons
         self.dry_run_button.setIcon(get_icon("preview"))
         self.start_button.setIcon(get_icon("start"))
         self.pause_button.setIcon(get_icon("pause"))
@@ -142,18 +145,15 @@ class MainWindow(QMainWindow):
         grid_layout.addWidget(self.duplicates_label, 0, 0)
         grid_layout.addWidget(self.duplicates_combo, 0, 1)
 
-        # Status and Logging components
         self.status_widget = StatusWidget()
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         self.progress_bar.setTextVisible(True)
 
-        # The new, scalable log viewer
         self.log_view = QListView()
         self.log_model = QStringListModel()
         self.log_view.setModel(self.log_model)
 
-        # Assemble the final layout
         main_layout.addWidget(self.source_selector)
         main_layout.addWidget(self.dest_selector)
         main_layout.addLayout(grid_layout)
@@ -163,12 +163,41 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(QLabel("Operation Log:"))
         main_layout.addWidget(self.log_view)
 
+    def pause(self):
+        """Signals the running operation to pause."""
+        self._pause_event.clear()  # Clearing the event causes the worker to wait
+        logger.info("Pause signal sent to classification engine.")
+        # self._update_button_states("pause")
+
+    def resume(self):
+        """Signals the paused operation to resume."""
+        self._pause_event.set()  # Setting the event allows the worker to continue
+        logger.info("Resume signal sent to classification engine.")
+        # self._update_button_states("resume")
+
+    def cancel(self):
+        """Signals the running operation to cancel."""
+        self._is_cancelled = True
+        self._pause_event.set()  # Also un-pause if cancelling, so the loop can exit
+        logger.info("Cancel signal sent to classification engine.")
+        # self._update_button_states("cancel")
+
+    def reset_state(self):
+        """Resets the state flags for a new operation."""
+        self._is_cancelled = False
+        self._pause_event.set()
+        # self._update_button_states("reset_state")
+
     def connect_signals(self):
-        """Connects widget signals to their handler methods."""
+        """Connects widget signals (like button clicks) to their handler methods (slots)."""
         self.start_button.clicked.connect(self.start_classification)
         self.dry_run_button.clicked.connect(self.handle_dry_run)
         self.undo_button.clicked.connect(self.handle_undo)
-        # """TODO_: Connect Pause, Resume, Cancel buttons when logic is implemented"""
+
+        # --- NEW CONNECTIONS ---
+        self.pause_button.clicked.connect(self.handle_pause)
+        self.resume_button.clicked.connect(self.handle_resume)
+        self.cancel_button.clicked.connect(self.handle_cancel)
 
     def initialize_engine(self):
         """Initializes the classification engine and handles potential errors."""
@@ -179,6 +208,7 @@ class MainWindow(QMainWindow):
                 raise FileNotFoundError(f"Configuration file not found at: {config_path}")
             self.engine = ClassificationEngine(config_path)
             self.status_widget.set_status("Engine initialized successfully.")
+            self._update_button_states("IDLE")
         except Exception as e:
             self.engine = None
             self.show_error_message(f"Critical error during initialization: {e}")
@@ -194,9 +224,38 @@ class MainWindow(QMainWindow):
             self.show_error_message("Please select valid source and destination directories.")
             return None
 
-        self.log_model.setStringList([])  # Clear the log view
+        self.log_model.setStringList([])
         self.progress_bar.setValue(0)
         return source_dir, dest_dir
+
+    @Slot()
+    def handle_pause(self):
+        """Handles the Pause button click."""
+        if self.engine:
+            self.engine.pause()
+            self._update_button_states("PAUSED")
+            self.status_widget.set_status("Operation paused.")
+
+    @Slot()
+    def handle_resume(self):
+        """Handles the Resume button click."""
+        if self.engine:
+            self.engine.resume()
+            self._update_button_states("RUNNING")
+            self.status_widget.set_status("Operation resumed.")
+
+    @Slot()
+    def handle_cancel(self):
+        """Handles the Cancel button click after user confirmation."""
+        reply = QMessageBox.question(self, 'Confirm Cancel',
+                                     "Are you sure you want to cancel the current operation?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes and self.engine:
+            self.status_widget.set_status("Cancelling operation...")
+            self.engine.cancel()
+            # The worker thread will see the cancel signal and call finished(),
+            # which triggers on_operation_finished() for the final state change.
 
     @Slot()
     def start_classification(self):
@@ -205,6 +264,8 @@ class MainWindow(QMainWindow):
         if not prep_result: return
         source_dir, dest_dir = prep_result
 
+        self._update_button_states("RUNNING")
+
         strategy_map = {"Append Number": DuplicateStrategy.APPEND_NUMBER, "Skip": DuplicateStrategy.SKIP,
                         "Replace": DuplicateStrategy.REPLACE}
         duplicate_strategy = strategy_map[self.duplicates_combo.currentText()]
@@ -212,7 +273,7 @@ class MainWindow(QMainWindow):
         plan = self.engine.generate_plan(self.engine.scan_directory(source_dir), dest_dir)
         if not plan:
             self.status_widget.set_status("No files found to classify.")
-            self._update_button_states(is_running=False)
+            self._update_button_states("IDLE")
             return
 
         self.status_widget.set_status(f"Classifying {len(plan)} files...")
@@ -225,7 +286,6 @@ class MainWindow(QMainWindow):
         self.active_worker.progress_updated.connect(self.update_progress)
         self.active_worker.error_occurred.connect(self.handle_error)
         self.active_thread.start()
-        self._update_button_states("RUNNING")
 
     @Slot()
     def handle_dry_run(self):
@@ -249,10 +309,17 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def handle_undo(self):
+        """Initiates the undo operation after user confirmation."""
         reply = QMessageBox.question(self, 'Confirm Undo', "Reverse the last operation?",
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.No: return
-        self._update_button_states(is_running=True)
+
+        # FIX: Added call to _prepare_for_operation to ensure paths are valid before proceeding
+        prep_result = self._prepare_for_operation()
+        if not prep_result: return
+
+        # FIX: The call that was causing the crash is now corrected.
+        self._update_button_states("RUNNING")
         self.status_widget.set_status("Performing undo...")
 
         self.active_thread = QThread()
@@ -264,11 +331,9 @@ class MainWindow(QMainWindow):
         self.active_worker.progress_updated.connect(self.update_undo_progress)
         self.active_worker.error_occurred.connect(self.handle_error)
         self.active_thread.start()
-        self._update_button_states("RUNNING")
 
     def _add_log_message(self, message: str):
         """Appends a message to the scalable log view."""
-        # This is the new, memory-efficient way to add logs.
         row = self.log_model.rowCount()
         self.log_model.insertRow(row)
         index = self.log_model.index(row)
@@ -284,19 +349,38 @@ class MainWindow(QMainWindow):
     @Slot(int, int, str)
     def update_undo_progress(self, processed, total, message):
         """Updates UI during undo operation."""
-        if total > 0: self.progress_bar.setValue(int((processed / total) * 100))
+        if total > 0:
+            self.progress_bar.setValue(int((processed / total) * 100))
         self._add_log_message(message)
 
     @Slot()
     def on_operation_finished(self):
-        """Cleans up after any operation completes."""
-        if self.progress_bar.value() == 100:
-            self.status_widget.set_status("Operation completed successfully.")
+        """Cleans up after any operation completes and adds a final message to the log."""
+        # Check the final state of the operation and update the UI accordingly.
+        if self.engine and self.engine._is_cancelled:
+            self.status_widget.set_status("Operation cancelled by user.", is_error=True)
+            # --- NEW: Add a final message to the Operation Log ---
+            self._add_log_message("\n❌ --- Operation Cancelled By User --- ❌")
 
+        elif self.progress_bar.value() == 100:
+            self.status_widget.set_status("Operation completed successfully.")
+            # --- NEW: Add a final message to the Operation Log ---
+            self._add_log_message("\n✅ --- Classification Successfully Completed --- ✅")
+            QMessageBox.information(self, "Success", "All files have been successfully classified!")
+
+        else:
+            self.status_widget.set_status("Operation finished.")
+            # --- NEW: Add a generic final message to the Operation Log ---
+            self._add_log_message("\n--- Operation Finished ---")
+
+        # Cleanup worker thread
         if self.active_thread:
             self.active_thread.quit()
             self.active_thread.wait()
             self.active_thread = None
+            self.active_worker = None
+
+        # Reset the UI to the ready state
         self._update_button_states("IDLE")
 
     @Slot(str)
@@ -308,9 +392,7 @@ class MainWindow(QMainWindow):
         self._update_button_states("ERROR")
 
     def _update_button_states(self, state: str):
-        """Centralized method to manage the enabled/disabled state of all action buttons."""
         """Manages the enabled/disabled state of all action buttons based on application state."""
-        # state can be "IDLE", "RUNNING", "PAUSED", "INITIALIZING", "ERROR"
         is_idle = state == "IDLE"
         is_running = state == "RUNNING"
         is_paused = state == "PAUSED"
@@ -350,8 +432,8 @@ class MainWindow(QMainWindow):
 
 def run_gui():
     """The entry point for the GUI application."""
-    setup_logging() # Ensure logging is configured
-    validate_assets() # Validate assets at startup
+    setup_logging()
+    validate_assets()
     app = QApplication(sys.argv)
     app.setStyleSheet(load_stylesheet())
     window = MainWindow()
