@@ -1,94 +1,231 @@
-# Smart File Classifier v3.0
+# Smart File Classifier v3.0 - Full Documentation
 
-![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Status](https://img.shields.io/badge/status-complete-brightgreen.svg)
+![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![Platform](https://img.shields.io/badge/platform-windows%20%7C%20macos%20%7C%20linux-lightgrey.svg)
+![Status](https://img.shields.io/badge/status-stable-brightgreen.svg)
 
-A professional, dual-mode (CLI + GUI) file classification tool built with Python. Designed for performance, safety, and scalability, it intelligently organizes messy directories into a clean, structured format.
+Welcome to the official documentation for the Smart File Classifier, a professional, dual-mode file organization tool designed for performance, safety, and scalability.
 
 ---
 
-## ✨ Core Vision
+### **Table of Contents**
+1.  [Project Overview](#-project-overview)
+2.  [Full Installation Guide](#-full-installation-guide)
+3.  [Modes of the Project](#-modes-of-the-project)
+    *   [Graphical User Interface (GUI)](#-graphical-user-interface-gui)
+    *   [Command-Line Interface (CLI)](#-command-line-interface-cli)
+4.  [Advanced Guides](#-advanced-guides)
+5.  [Contribution Guide](#-contribution-guide)
+6.  [License](#-license)
 
-This project was built on the principles of **Security, Safety, and Robustness**. It features a modular architecture with a shared core engine, ensuring that both the command-line and graphical interfaces are powerful and reliable. Inspired by modern file systems, it is designed to handle everything from a few files to millions with grace and speed.
+---
+
+## ✨ Project Overview
+
+The Smart File Classifier is a robust utility designed to tackle the common problem of digital clutter. It scans a source directory filled with miscellaneous files and intelligently moves them into a structured destination, creating categories and sub-folders based on file types. Its dual-mode nature makes it perfect for both interactive, visual organization (GUI) and powerful, automated scripting workflows (CLI).
+
+The core philosophy of this project is **Security, Safety, and Robustness**. Every file operation is designed to be safe, with features like a "Dry Run" mode to preview changes and a crucial "Undo" function to revert the last operation, ensuring peace of mind when organizing critical data.
 
 ## 🚀 Key Features
 
-*   **Dual Mode Operation**: Use the fast and scriptable **CLI** for automation or the user-friendly **GUI** for interactive sessions.
-*   **Intelligent Classification**: Organizes files based on a comprehensive and customizable JSON configuration.
-*   **Advanced Duplicate Handling**: Choose to **skip**, **replace**, or **append a number** to duplicate files.
-*   **Safety First**: Includes a **Dry Run** mode to preview changes and a crucial **Undo** feature to revert the last operation.
-*   **High Performance**: Leverages **multithreading** to automatically use available CPU cores for blazing-fast I/O operations.
-*   **Robust & Responsive**: The GUI is built on a separate worker thread, ensuring the interface never freezes, even with large datasets.
-*   **Professional Logging**: Captures detailed logs in `app.log` for auditing and debugging.
+*   **Dual Mode Operation**: A beautiful, intuitive **Graphical User Interface (GUI)** for interactive use and a powerful **Command-Line Interface (CLI)** for scripting and automation.
+*   **Intelligent Classification**: Sorts files into `Category/extension` sub-folders (e.g., `Documents & Text/pdf/`) based on a comprehensive and easily editable `file_types.json` configuration.
+*   **Full Operation Control**:
+    *   **Dry Run**: Preview exactly what changes will be made without moving a single file.
+    *   **Undo**: Instantly revert the last completed classification operation with a single command.
+    *   **Pause, Resume & Cancel**: Full control over long-running operations directly from the GUI.
+*   **Advanced Duplicate Handling**: Choose how to handle files that already exist in the destination: `skip`, `replace`, or `append_number` (default).
+*   **High Performance**: Leverages a multi-threaded architecture (`ThreadPoolExecutor`) to dramatically speed up file operations by utilizing multiple CPU cores, making it ideal for large datasets.
+*   **Responsive & Stable GUI**: The classification engine runs in a separate background thread, ensuring the user interface remains smooth and responsive at all times, even when processing hundreds of thousands of files.
+*   **Professional Logging**: Captures detailed, persistent logs in `app.log` for auditing, debugging, and history tracking.
 
-## ⚙️ Installation
+## 🛠️ Full Installation Guide
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/your-username/smart_file_classifier_v3.git
-    cd smart_file_classifier_v3
-    ```
+Follow these steps to set up the project on your local machine.
 
-2.  **Create a virtual environment:**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
-    ```
+**1. Prerequisites:**
+*   Python 3.9 or newer.
+*   `git` for cloning the repository.
 
-3.  **Install the dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+**2. Clone the Repository:**
+Open your terminal or command prompt and run the following command to clone the project:
+```bash
+git clone https://github.com/PrasannaKore/smart_file_classifier_v3.git
+cd smart_file_classifier_v3
+```
 
-## Usage
+### 3. Create a Virtual Environment
 
-This tool can be run in two modes from the main entry point.
+It is highly recommended to use a virtual environment to manage dependencies and avoid conflicts.
 
-### 🎨 Graphical User Interface (GUI)
+```bash
+# For Windows
+python -m venv venv
+venv\Scripts\activate
 
-For an interactive experience, launch the GUI.
+# For macOS/Linux
+python3 -m venv venv
+source venv/bin/activate
+```
+
+---
+
+### 4. Install Dependencies
+
+The project's dependencies are listed in `requirements.txt`. Install them using pip:
+
+```bash
+pip install -r requirements.txt
+```
+
+For developers who wish to run tests, install the development dependencies:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+---
+
+### 5. Verify Installation
+
+You are now ready to run the application. Test the launch of the GUI:
 
 ```bash
 python -m smart_classifier.main gui
 ```
+
+The application window should appear, indicating a successful installation.
+
+---
+
+## ⚙️ Modes of the Project
+
+The application can be used in two distinct modes, sharing the same powerful core engine.
+
+---
+
+### 🎨 Graphical User Interface (GUI)
+
+The GUI provides a rich, interactive, and user-friendly experience. It is the recommended mode for most users.
+
+**To Launch:**
+
+```bash
+python -m smart_classifier.main gui
+```
+
+---
+
+#### GUI Features Explained
+
+- **Source & Destination Selectors:**  
+  Use the "Browse..." buttons to easily select the messy folder you want to organize and the destination where the sorted folders will be created.
+
+- **Duplicate Files Dropdown:** Choose your strategy for handling filename conflicts:
+  - `Append Number`: (Default & Safest) Renames duplicates (e.g., `report.pdf` becomes `report_1.pdf`).
+  - `Skip`: If a file already exists at the destination, the original file is left untouched.
+  - `Replace`: Overwrites the file at the destination. **Use with caution.**
+
+- **Action Buttons:**
+  - `Start`: Begins the main classification process.
+  - `Pause`: Temporarily halts the operation. The progress bar turns yellow.
+  - `Resume`: Continues a paused operation. The progress bar turns green again.
+  - `Cancel`: Aborts the current operation. The progress bar turns red and resets.
+  - `Dry Run`: Scans and generates a plan, showing what will happen in the Operation Log without moving any files.
+  - `Undo`: Reverts the last completed classification operation.
+
+- **Status Bar:**  
+  Provides real-time, at-a-glance feedback on the application's current state (e.g., _"Idle," "Classifying 5,000 files...," "Operation Paused"_).
+
+- **Progress Bar:**  
+  Shows the overall progress of the current operation with color-coded states:
+  - 🟩 Green: Running/Success
+  - 🟨 Yellow: Paused
+  - 🟥 Red: Cancelled/Error
+
+- **Operation Log:**  
+  A scalable, memory-efficient log that displays a real-time list of every file operation as it happens.
+
+---
+
 ### 🖥️ Command-Line Interface (CLI)
-For scripting and automation, use the powerful CLI.
-code
-Bash
-# Get help and see all options
+
+The CLI is a powerful tool for power users, scripting, and automation. It exposes all core features of the application through a clean and well-documented command structure.
+
+**To Launch & Get Help:**
+
+```bash
 python -m smart_classifier.main cli --help
+```
 
-# Example: Perform a dry run to see what would happen
-python -m smart_classifier.main cli -s "C:\Users\User\Downloads" -d "D:\Sorted" --dry-run
+---
 
-# Example: Execute the classification
-python -m smart_classifier.main cli -s "C:\Users\User\Downloads" -d "D:\Sorted" --duplicates skip
+#### CLI Commands & Features Explained
 
-# Example: Undo the last operation
-python -m smart_classifier.main undo```
+---
 
-For more detailed usage instructions, please see the [USAGE.md](./docs/USAGE.md) file.
+#### 1. `classify`
 
-## 🏛️ Project Structure
+This is the main command for running a classification task.
 
-The project is organized into a clean, modular structure:
-smart_file_classifier_v3/
-├── assets/ # Icons and stylesheets
-├── config/ # The file type mapping JSON
-├── docs/ # Project documentation
-├── smart_classifier/ # Main source code package
-│ ├── core/ # Shared business logic (the "engine")
-│ ├── cli/ # Command-line interface code
-│ ├── gui/ # Graphical interface code
-│ └── utils/ # Helper modules (logging, threading)
-├── tests/ # Unit tests for the core logic
-├── README.md # This file
-└── LICENSE # MIT License
-code
-Code
-For a more detailed explanation, see the [ARCHITECTURE.md](./docs/ARCHITECTURE.md) file.
+**Usage:**
+
+```bash
+python -m smart_classifier.main cli [OPTIONS]
+```
+
+**Options:**
+
+- `-s, --source PATH`: (Required) The path to the source directory containing the files to classify.  
+- `-d, --destination PATH`: (Required) The path to the destination directory where sorted folders will be created.  
+- `--duplicates [skip|replace|append_number]`: Sets the strategy for handling duplicates. Defaults to `append_number`.  
+- `--dry-run`: A flag to perform a simulation. It will print the planned operations without moving any files.  
+- `--config PATH`: Optionally provide a path to a custom `file_types.json` configuration file.  
+
+**Examples:**
+
+```bash
+# Perform a safe dry run to preview the changes
+python -m smart_classifier.main cli -s "./Downloads" -d "./Sorted Documents" --dry-run
+
+# Run the classification, skipping any existing files
+python -m smart_classifier.main cli -s "./Downloads" -d "./Sorted Documents" --duplicates skip
+```
+
+---
+
+#### 2. `undo`
+
+This command reverts the last completed classification operation. It takes no arguments.
+
+**Usage:**
+
+```bash
+python -m smart_classifier.main undo
+```
+
+The command will read the transaction log from the last operation and move all files back to their original locations, showing a progress bar as it works.
+
+---
+
+## 📚 Advanced Guides
+
+For more advanced topics, please refer to the following guides:
+
+- **[Execution Guide](./docs/EXECUTION_GUIDE.md):** Learn how to build the application into a standalone executable (.exe).
+- **[Integration Guide](./docs/INTEGRATION_GUIDE.md):** Learn how to integrate the classifier into your own scripts and applications.
+- **[Use Cases Guide](./docs/USE_CASES.md):** Discover real-world applications and workflows for this tool.
+- **[Architecture Overview](./docs/ARCHITECTURE.md):** A deep dive into the project's design and structure.
+
+---
+
+## 🤝 Contribution Guide
+
+Contributions are welcome! We encourage you to open an issue to discuss any major changes you would like to make before submitting a pull request.
+
+---
 
 ## 📜 License
 
-This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+This project is licensed under the MIT License. You can view the full license in the [LICENSE](./LICENSE) file at the root of the repository.

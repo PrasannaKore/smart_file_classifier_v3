@@ -57,35 +57,22 @@ def run_classifier(source_dir: str, dest_dir: str):
         print(f"Error: The classifier exited with a non-zero status code: {e.returncode}")
         print("STDERR:\n", e.stderr)
 ```
-# --- Usage ---
-# run_classifier("/path/to/your/messy_folder", "/path/to/your/sorted_folder")
-Example (Bash Script)
-```Bash
-#!/bin/bash
 
-SOURCE_DIR="./my_downloads"
-DEST_DIR="./my_archive"
+## 📦 Method 2: Library Integration (Direct Import in Python)
 
-echo "Starting file classification..."
-
-python -m smart_classifier.main cli -s "$SOURCE_DIR" -d "$DEST_DIR"
-
-if [ $? -eq 0 ]; then
-    echo "Classification completed successfully."
-else
-    echo "Classification failed with an error."
-fi
-```
-## Method 2: Library Integration (Direct Import in Python)
 For Python-based projects, this is the most powerful and flexible method. You can directly import and use the core classification engine.
-Key Concepts
-The Engine: All core logic resides in the smart_classifier.core.classification_engine.ClassificationEngine class.
-UI-Agnostic: This engine is completely independent of the GUI and CLI, making it perfectly safe to import.
-Progress Callback: The execute_plan method accepts an optional progress_callback function, allowing your application to receive real-time updates.
-Step-by-Step Example
 
-```Python
+### 🔑 Key Concepts
 
+- **The Engine:** All core logic resides in the `smart_classifier.core.classification_engine.ClassificationEngine` class.
+- **UI-Agnostic:** This engine is completely independent of the GUI and CLI, making it perfectly safe to import.
+- **Progress Callback:** The `execute_plan` method accepts an optional `progress_callback` function, allowing your application to receive real-time updates.
+
+---
+
+### ✅ Step-by-Step Example
+
+```python
 from pathlib import Path
 from smart_classifier.core.classification_engine import ClassificationEngine
 from smart_classifier.core.file_operations import DuplicateStrategy
@@ -105,23 +92,18 @@ def integrate_classifier_as_library(source_dir_path: str, dest_dir_path: str):
         config_path = Path("./config/file_types.json") # Adjust if needed
 
         # 2. Instantiate the engine.
-        # This will load and parse the classification rules from the JSON file.
         engine = ClassificationEngine(config_path=config_path)
 
-        # 3. Scan the source directory to get a list of files.
+        # 3. Scan the source directory.
         files_to_process = engine.scan_directory(source_dir=source_dir)
         if not files_to_process:
             print("No files found to process.")
             return
 
-        print(f"Found {len(files_to_process)} files.")
-
-        # 4. Generate a classification plan (this is the "Dry Run" step).
+        # 4. Generate a classification plan.
         plan = engine.generate_plan(files=files_to_process, dest_dir=dest_dir)
 
-        # 5. Execute the plan.
-        # This will start the multi-threaded file moving operation and call
-        # our custom callback function with real-time updates.
+        # 5. Execute the plan with our custom callback.
         print("\nStarting classification...")
         engine.execute_plan(
             plan=plan,
@@ -134,16 +116,21 @@ def integrate_classifier_as_library(source_dir_path: str, dest_dir_path: str):
         print(f"Error: A required file or directory was not found. {e}")
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
-``` 
+```
 # --- Usage ---
 # integrate_classifier_as_library("./my_messy_folder", "./my_sorted_folder")
-Dependency Handling
-When integrating the classifier as a library, you must ensure that its dependencies are also installed in your project's environment. You can achieve this by including the contents of requirements.txt in your own project's requirements file.
-code
-Code
+
+## 📦 Dependency Handling
+
+When integrating the classifier as a library, you must ensure that its dependencies are also installed in your project's environment.  
+You can achieve this by including the contents of `requirements.txt` from the Smart File Classifier into your own project's requirements file.
+
+### 📄 Example
+
+```text
 # Your project's requirements.txt
 your_other_dependency==1.2.3
-
+```
 # Dependencies from Smart File Classifier
 pyside6
 click
