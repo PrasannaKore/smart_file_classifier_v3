@@ -5,9 +5,11 @@ import logging
 from pathlib import Path
 from tqdm import tqdm
 from typing import Callable
+import threading
 
 from .file_operations import safe_move, DuplicateStrategy
 
+_log_lock = threading.Lock()
 logger = logging.getLogger(__name__)
 
 # The dedicated path for our transaction log.
@@ -31,20 +33,36 @@ class UndoManager:
 
     @staticmethod
     def log_move(source_path: Path, dest_path: Path):
-        """Appends a successful move operation to the transaction log."""
+        """
+        Appends a successful move operation to the transaction log in a thread-safe manner.
+        """
         log_entry = {
             'source': str(source_path.resolve()),
             'destination': str(dest_path.resolve())
         }
-        try:
-            # Read-modify-write is a safe way to handle JSON lists.
-            with open(TRANSACTION_LOG_PATH, 'r+', encoding='utf-8') as f:
-                log_data = json.load(f)
-                log_data.append(log_entry)
-                f.seek(0)
-                json.dump(log_data, f, indent=2)
-        except (IOError, json.JSONDecodeError) as e:
-            logger.error(f"Failed to write to transaction log: {e}")
+
+        # --- THREAD-SAFE FIX ---
+        # The 'with' statement ensures that the lock is automatically acquired
+        # before entering the block and released after leaving it, even if an
+        # error occurs. This is the modern, safe way to use locks.
+        with _log_lock:
+            try:
+                # We now safely perform the read-modify-write operation,
+                # confident that no other thread can interfere.
+                with open(TRANSACTION_LOG_PATH, 'r+', encoding='utf-8') as f:
+                    log_data = json.load(f)
+                    log_data.append(log_entry)
+                    f.seek(0)
+                    f.truncate()  # Clear the file before writing to prevent "extra data"
+                    json.dump(log_data, f, indent=2)
+            except (IOError, json.JSONDecodeError) as e:
+                # If the file is empty or corrupt, we start a new list.
+                if isinstance(e, json.JSONDecodeError):
+                    logger.warning("Transaction log was corrupt or empty. Starting a new log.")
+                    with open(TRANSACTION_LOG_PATH, 'w', encoding='utf-8') as f:
+                        json.dump([log_entry], f, indent=2)
+                else:
+                    logger.error(f"Failed to write to transaction log: {e}")
 
     @staticmethod
     def undo_last_operation(

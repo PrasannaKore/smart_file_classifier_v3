@@ -2,9 +2,11 @@
 
 import json
 import logging
+import os
+import queue
 from pathlib import Path
 from typing import Dict, List, Tuple, Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 # Import our robust file operations module and the duplicate strategy Enum
 from .file_operations import DuplicateStrategy, safe_move
@@ -96,24 +98,33 @@ class ClassificationEngine:
 
     def scan_directory(self, source_dir: Path) -> List[Path]:
         """
-        Scans the source directory recursively and returns a list of all files.
-
-        Args:
-            source_dir: The directory to scan.
-
-        Returns:
-            A list of Path objects, each representing a file.
+        Scans the source directory recursively, now intelligently ignoring common
+        system-generated hidden files like Thumbs.db and .DS_Store.
         """
         logger.info(f"Scanning directory: {source_dir}")
         if not source_dir.is_dir():
             logger.error(f"Source path is not a valid directory: {source_dir}")
             return []
 
-        # Using rglob('*') is a powerful and efficient way to find all files
-        # in all subdirectories. We then filter to ensure we only have files.
-        files = [item for item in source_dir.rglob('*') if item.is_file()]
-        logger.info(f"Scan complete. Found {len(files)} files.")
-        return files
+        # List of system files/patterns to ignore completely
+        ignore_list = ['thumbs.db', '.ds_store']
+
+        found_files = []
+        try:
+            for root, _, filenames in os.walk(source_dir):
+                for filename in filenames:
+                    # --- NEW: The intelligent filter ---
+                    if filename.lower() not in ignore_list:
+                        file_path = Path(root) / filename
+                        found_files.append(file_path)
+                    else:
+                        logger.debug(f"Ignoring system file: {filename}")
+        except Exception as e:
+            logger.error(f"An error occurred during directory scan: {e}", exc_info=True)
+            return []
+
+        logger.info(f"Scan complete. Found {len(found_files)} user files.")
+        return found_files
 
     def generate_plan(self, files: List[Path], dest_dir: Path) -> List[Tuple[Path, Path]]:
         """
@@ -166,52 +177,85 @@ class ClassificationEngine:
             progress_callback: Callable[[int, str, str], None] | None = None
     ):
         """
-        Executes the move plan sequentially, with robust support for Pause, Resume, and Cancel.
-        This single-threaded orchestration guarantees control and UI responsiveness.
+        Executes the plan using a high-performance Producer-Consumer pattern with
+        a fully robust, graceful shutdown protocol for cancellation.
         """
         total_files = len(plan)
-        if total_files == 0:
-            logger.info("Plan is empty. Nothing to execute.")
-            return
+        if total_files == 0: return
 
-        # (PRESERVED) Step 1: Ensure all state flags are reset for a clean run.
         self.reset_state()
-
-        logger.info(f"Executing plan for {total_files} files with strategy: {duplicate_strategy.name}")
-
-        # (PRESERVED) Step 2: Prepare the transaction log for a potential undo operation.
+        logger.info(f"Executing hybrid plan for {total_files} files...")
         UndoManager.clear_log()
 
+        task_queue = queue.Queue(maxsize=get_optimal_thread_count() * 2)
         files_processed = 0
 
-        # (PRESERVED) Step 3: Iterate through every file in the plan.
-        for source_path, dest_dir in plan:
-            # --- NEW CONTROL LOGIC ---
-            # This is the "checkpoint" that gives us full control.
-            self._pause_event.wait()
-            if self._is_cancelled:
-                logger.warning("Operation cancelled by user. Halting processing.")
-                break
-            # --- END NEW LOGIC ---
+        def consumer():
+            """The worker function that runs in the thread pool."""
+            while not self._is_cancelled:
+                try:
+                    self._pause_event.wait(timeout=0.1)
+                    if self._is_cancelled: break
+
+                    # Get a task from the queue.
+                    task = task_queue.get(timeout=0.1)
+
+                    # --- THE DEFINITIVE FIX ---
+                    # First, check if the task is a "poison pill" (None).
+                    # If it is, the consumer's job is done, and it should exit.
+                    if task is None:
+                        break
+                    # --- END FIX ---
+
+                    # If it's a real task, unpack it and proceed.
+                    source_path, dest_dir = task
+
+                    status, final_dest_path = safe_move(source_path, dest_dir, duplicate_strategy)
+                    if status == "MOVED":
+                        UndoManager.log_move(source_path, final_dest_path)
+
+                    if progress_callback:
+                        progress_callback(-1, source_path.name, status)
+
+                    task_queue.task_done()
+                except queue.Empty:
+                    if self._producer_done:
+                        break
+                except Exception as e:
+                    logger.error(f"Error in consumer thread: {e}", exc_info=True)
+                    task_queue.task_done()
+
+        # --- The Producer ---
+        self._producer_done = False
+        with ThreadPoolExecutor(max_workers=get_optimal_thread_count()) as executor:
+            consumers = [executor.submit(consumer) for _ in range(get_optimal_thread_count())]
 
             try:
-                # (PRESERVED) Step 4: Call the robust safe_move function for each file.
-                status, final_dest_path = safe_move(source_path, dest_dir, duplicate_strategy)
+                for source_path, dest_dir in plan:
+                    self._pause_event.wait()
+                    if self._is_cancelled:
+                        logger.warning("Cancellation detected in producer.")
+                        break
 
-                # (PRESERVED) Step 5: Log the transaction for the Undo feature on success.
-                if status == "MOVED":
-                    UndoManager.log_move(source_path, final_dest_path)
+                    task_queue.put((source_path, dest_dir))
+                    files_processed += 1
+                    if progress_callback:
+                        percentage = int((files_processed / total_files) * 100)
+                        progress_callback(percentage, "...", "...")
+            finally:
+                # --- Graceful Shutdown Protocol ---
+                self._producer_done = True
 
-            # (PRESERVED) Step 6: Handle exceptions gracefully for a single file.
-            except Exception as e:
-                status = "ERROR"
-                logger.error(f"Error processing {source_path}: {e}", exc_info=True)
+                # Wake up any sleeping consumers with poison pills so they can exit.
+                for _ in consumers:
+                    try:
+                        task_queue.put(None, timeout=0.1)
+                    except queue.Full:
+                        pass  # If queue is full, consumers are busy and will see flags later.
 
-            # (PRESERVED) Step 7: Send real-time progress updates back to the UI.
-            files_processed += 1
-            if progress_callback:
-                progress_percentage = int((files_processed / total_files) * 100)
-                progress_callback(progress_percentage, source_path.name, status)
+                # Wait for all consumer threads to finish their work and exit.
+                executor.shutdown(wait=True)
+                logger.info("All consumer threads have shut down.")
 
         logger.info("Execution of plan complete.")
 
