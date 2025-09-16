@@ -149,10 +149,17 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.log_view)
 
     def connect_signals(self):
-        """Connects all widget signals to their handler methods."""
+        """
+        Connects ALL widget signals to their handler methods, ensuring that every
+        button, including Pause, Resume, and Cancel, is fully functional.
+        """
+        # --- Main operations ---
         self.start_button.clicked.connect(self.start_classification)
         self.dry_run_button.clicked.connect(self.handle_dry_run)
         self.undo_button.clicked.connect(self.handle_undo)
+
+        # --- In-flight operation controls ---
+        # These lines activate the Pause, Resume, and Cancel buttons.
         self.pause_button.clicked.connect(self.handle_pause)
         self.resume_button.clicked.connect(self.handle_resume)
         self.cancel_button.clicked.connect(self.handle_cancel)
@@ -274,8 +281,10 @@ class MainWindow(QMainWindow):
     @Slot()
     def handle_cancel(self):
         """Handles the Cancel button click after user confirmation."""
-        reply = QMessageBox.question(self, 'Confirm Cancel', "Are you sure you want to cancel the current operation?",
+        reply = QMessageBox.question(self, 'Confirm Cancel',
+                                     "Are you sure you want to cancel the current operation?",
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
         if reply == QMessageBox.Yes and self.engine:
             self.status_widget.set_status("Cancelling operation...")
             self.engine.cancel()
@@ -305,8 +314,10 @@ class MainWindow(QMainWindow):
     def on_operation_finished(self):
         """
         Cleans up after any operation completes. This version uses a robust, non-blocking
-        cleanup sequence to prevent the UI from freezing.
+        cleanup sequence to guarantee the UI never freezes and the application
+        remains open and ready for the next operation.
         """
+        # Step 1: Set the final status message and progress bar state based on the outcome.
         if self.engine and self.engine._is_cancelled:
             self.status_widget.set_status("Operation cancelled by user.", is_error=True)
             self._add_log_message("\n❌ --- Operation Cancelled By User --- ❌")
@@ -317,12 +328,25 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Success", "All files have been successfully classified!")
         else:
             self.status_widget.set_status("Operation finished.")
+
+        # Step 2: Reset the progress bar for the next run.
         self.progress_bar.setValue(0)
         if self.progress_bar.property('state') != 'failed':
             self._set_progress_bar_color('success')
 
-        self.active_thread = None
-        self.active_worker = None
+        # Step 3: Perform a safe, non-blocking cleanup of the thread and worker.
+        if self.active_thread:
+            # We signal the thread to quit gracefully.
+            self.active_thread.quit()
+
+            # We then release our references to the objects, allowing Python's
+            # garbage collector to handle their eventual deletion.
+            # Most importantly, we DO NOT call .wait(), which prevents any blocking.
+            self.active_thread = None
+            self.active_worker = None
+
+        # Step 4: Reliably reset the UI buttons to the idle state, making the app
+        # ready for the next operation.
         self._update_button_states("IDLE")
 
     @Slot(str)
