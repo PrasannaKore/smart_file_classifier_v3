@@ -1,8 +1,8 @@
 {
   "_metadata": {
-    "version": "2.0",
-    "description": "A comprehensive, professional mapping of file extensions to their full descriptive names, organized by domain. This file serves as a metadata source for file classification engines.",
-    "author": "AI Assistant"
+    "version": "2.1",
+    "description": "A comprehensive, professional mapping of file extensions to categories. This version introduces an advanced 'analysis_rules' key to resolve ambiguity for specific file types.",
+    "author": "AI Assistant & PrasannaKore"
   },
   "Programming Languages": {
     ".py": "Python Source File",
@@ -95,7 +95,13 @@
     ".mdb": "Microsoft Access Database",
     ".accdb": "Microsoft Access Database",
     ".dump": "Database Dump File",
-    ".bak": "Database Backup File"
+    ".bak": {
+      "description": "Database Backup File",
+      "analysis_rules": [
+        { "type": "content_contains", "contains_str": "SQL" },
+        { "type": "content_contains", "contains_str": "BACKUP" }
+      ]
+    }
   },
   "Cloud & DevOps": {
     "Dockerfile": "Docker Configuration File",
@@ -209,7 +215,10 @@
   "Miscellaneous": {
     ".demo": "Demonstration File",
     ".tmp": "Temporary File",
-    ".bak": "Backup File",
+    ".bak": {
+      "description": "Generic Backup File (Fallback)",
+      "analysis_rules": []
+    },
     ".old": "Old Version File"
   }
 }

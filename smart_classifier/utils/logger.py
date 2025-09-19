@@ -4,7 +4,11 @@ import logging
 import logging.handlers
 from pathlib import Path
 
-def setup_logging():
+# --- NEW: Encapsulated LoggerManager Class ---
+# By placing all the setup logic inside a class, we follow a professional
+# Object-Oriented Programming (OOP) pattern. This makes the code more organized,
+# reusable, and prevents potential conflicts in a larger application.
+class LoggerManager:
     """
     Configures a robust, application-wide logging system.
 
@@ -16,41 +20,77 @@ def setup_logging():
        from growing indefinitely. It logs messages of DEBUG level and above,
        capturing much more detail for diagnostics.
     """
-    # Define the log file path in the project root for easy access.
-    log_file_path = Path(__file__).resolve().parents[2] / 'app.log'
+    """A manager class to configure the application's logging system."""
 
-    # Get the root logger. Configuring this means all loggers created with
-    # logging.getLogger(__name__) will inherit this configuration.
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)  # Set the lowest level to capture all messages.
+    def __init__(self, log_file_name: str = 'app.log', log_level=logging.DEBUG):
+        """
+        Initializes the manager.
 
-    # --- Console Handler ---
-    # Logs INFO level messages and above to the console.
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_formatter = logging.Formatter(
-        '%(asctime)s - [%(levelname)s] - %(message)s',
-        datefmt='%H:%M:%S'
-    )
-    console_handler.setFormatter(console_formatter)
+        Args:
+            log_file_name: The name of the log file to be created in the project root.
+            log_level: The base logging level to capture (e.g., DEBUG, INFO).
+        """
+        self.log_file_path = Path(__file__).resolve().parents[2] / log_file_name
+        self.log_level = log_level
+        self.root_logger = logging.getLogger()
 
-    # --- Rotating File Handler ---
-    # Logs DEBUG level messages and above to 'app.log'.
-    # Rotates the log file when it reaches 5MB, keeping up to 5 old log files.
-    file_handler = logging.handlers.RotatingFileHandler(
-        log_file_path, maxBytes=5*1024*1024, backupCount=5, encoding='utf-8'
-    )
-    file_handler.setLevel(logging.DEBUG)
-    file_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - [%(levelname)s] - %(filename)s:%(lineno)d - %(message)s'
-    )
-    file_handler.setFormatter(file_formatter)
+    def setup(self):
+        """
+        Configures and attaches handlers to the root logger.
+        This is the main method that sets up the entire logging system.
+        """
+        # We only set up handlers if none have been configured yet.
+        # This is a crucial safety check to prevent adding duplicate handlers
+        # if this function is accidentally called more than once.
+        if self.root_logger.hasHandlers():
+            return
 
-    # Add the handlers to the root logger.
-    # We check if handlers already exist to prevent duplication if this
-    # function is ever called more than once.
-    if not root_logger.handlers:
-        root_logger.addHandler(console_handler)
-        root_logger.addHandler(file_handler)
+        self.root_logger.setLevel(self.log_level)
 
-    logging.info("Logging configured successfully. All future events will be captured.")
+        # Create and add the console handler.
+        console_handler = self._create_console_handler()
+        self.root_logger.addHandler(console_handler)
+
+        # Create and add the file handler.
+        file_handler = self._create_file_handler()
+        self.root_logger.addHandler(file_handler)
+
+        logging.info("Logging configured successfully. All future events will be captured.")
+
+    def _create_console_handler(self) -> logging.StreamHandler:
+        """Creates a handler for logging messages to the console."""
+        # This handler shows real-time feedback to the user running the app.
+        # It's typically set to INFO level to avoid cluttering the console.
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.INFO)
+        formatter = logging.Formatter(
+            '%(asctime)s - [%(levelname)s] - %(message)s',
+            datefmt='%H:%M:%S'
+        )
+        handler.setFormatter(formatter)
+        return handler
+
+    def _create_file_handler(self) -> logging.handlers.RotatingFileHandler:
+        """Creates a rotating file handler for persistent logging."""
+        # This handler writes detailed logs to a file for debugging and auditing.
+        # It's set to DEBUG level to capture everything.
+        # The 'RotatingFileHandler' is a smart choice: it prevents the log file
+        # from growing infinitely large by creating new files (backups) when
+        # the current one reaches a size limit (e.g., 5MB).
+        handler = logging.handlers.RotatingFileHandler(
+            self.log_file_path, maxBytes=5*1024*1024, backupCount=5, encoding='utf-8'
+        )
+        handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - [%(levelname)s] - %(filename)s:%(lineno)d - %(message)s'
+        )
+        handler.setFormatter(formatter)
+        return handler
+
+# --- REPLACED: The New, Clean Public Entry Point ---
+# This is the only function that other parts of our application will ever need to call.
+# It hides all the complex setup logic inside our new class, which is a great design pattern.
+def setup_logging():
+    """Initializes and configures the application-wide logging system."""
+    manager = LoggerManager()
+    manager.setup()

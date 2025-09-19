@@ -1,0 +1,195 @@
+/*
+ * Smart File Classifier v3.0 - Professional Light Theme (Nord Color Palette)
+ * This stylesheet provides a clean, readable, and calming light theme experience.
+ */
+
+/* --- Global Styles --- */
+QWidget {
+    background-color: #ECEFF4; /* Light background */
+    color: #2E3440; /* Dark text for high contrast */
+    font-family: Segoe UI, Arial, sans-serif;
+    font-size: 10pt;
+}
+
+QMainWindow {
+    background-color: #ECEFF4;
+}
+
+/* --- Labels & Text --- */
+QLabel {
+    background-color: transparent;
+    color: #4C566A; /* Slightly softer dark text */
+    padding: 2px;
+}
+
+#TimerLabel, #StatusLabel {
+    font-weight: bold;
+    color: #2E3440; /* Strongest dark text for key info */
+}
+
+/* --- Input Fields --- */
+QLineEdit {
+    background-color: #FFFFFF;
+    border: 1px solid #D8DEE9;
+    border-radius: 4px;
+    padding: 5px;
+    color: #2E3440;
+}
+
+QLineEdit:focus {
+    border: 1px solid #5E81AC; /* Blue accent on focus */
+}
+
+/* --- Buttons --- */
+QPushButton {
+    background-color: #E5E9F0;
+    color: #434C5E;
+    border: 1px solid #D8DEE9;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-weight: bold;
+    text-align: center;
+}
+
+QPushButton:hover {
+    background-color: #D8DEE9;
+    border-color: #C1C9D8;
+}
+
+QPushButton:pressed {
+    background-color: #B48EAD; /* A soft purple for pressed state */
+    color: #ECEFF4;
+}
+
+QPushButton:disabled {
+    background-color: #E5E9F0;
+    color: #A3B1CC;
+    border-color: #E5E9F0;
+}
+
+/* --- Dropdown / ComboBox --- */
+QComboBox {
+    background-color: #FFFFFF;
+    border: 1px solid #D8DEE9;
+    border-radius: 4px;
+    padding: 5px;
+    padding-left: 10px;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 25px;
+    border-left-width: 1px;
+    border-left-color: #D8DEE9;
+    border-left-style: solid;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+QComboBox::down-arrow {
+    image: url("../icons/down-arrow-dark.svg"); /* Requires a dark version of the arrow */
+    width: 16px;
+    height: 16px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #FFFFFF;
+    border: 1px solid #D8DEE9;
+    selection-background-color: #5E81AC; /* Blue accent for selection */
+    selection-color: #ECEFF4; /* Light text on blue background */
+}
+
+/* --- Progress Bar (Four-Color System) --- */
+QProgressBar {
+    background-color: #E5E9F0;
+    border: 1px solid #D8DEE9;
+    border-radius: 4px;
+    text-align: center;
+    color: #4C566A;
+    font-weight: bold;
+}
+
+QProgressBar::chunk:running {
+    background-color: #5E81AC; /* Blue */
+}
+
+QProgressBar::chunk:success {
+    background-color: #A3BE8C; /* Green */
+}
+
+QProgressBar::chunk:paused {
+    background-color: #EBCB8B; /* Yellow */
+}
+
+QProgressBar::chunk:failed {
+    background-color: #BF616A; /* Red */
+}
+
+/* --- Professional TableView Styles (for the Log Viewer) --- */
+QTableView {
+    background-color: #FFFFFF;
+    border: 1px solid #D8DEE9;
+    border-radius: 4px;
+    color: #434C5E;
+    font-family: Consolas, Courier New, monospace;
+    gridline-color: #E5E9F0;
+    alternate-background-color: #ECEFF4; /* Subtle alternating row colors */
+}
+
+QTableView::item {
+    padding: 5px;
+    border-bottom: 1px solid #E5E9F0;
+}
+
+QTableView::item:selected {
+    background-color: #5E81AC; /* Blue accent for selection */
+    color: #ECEFF4; /* Light text on blue background */
+}
+
+QHeaderView::section {
+    background-color: #E5E9F0;
+    color: #2E3440;
+    padding: 4px;
+    border: 1px solid #D8DEE9;
+    font-weight: bold;
+}
+
+/* --- Group Boxes & Tabs for a Polished Layout --- */
+QGroupBox {
+    border: 1px solid #D8DEE9;
+    border-radius: 4px;
+    margin-top: 1ex;
+    font-weight: bold;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 5px;
+}
+
+QTabWidget::pane {
+    border: 1px solid #D8DEE9;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+QTabBar::tab {
+    background: #ECEFF4;
+    border: 1px solid #D8DEE9;
+    border-bottom-color: #D8DEE9;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    padding: 8px 16px;
+    font-weight: bold;
+}
+
+QTabBar::tab:selected, QTabBar::tab:hover {
+    background: #FFFFFF;
+}
+
+QTabBar::tab:selected {
+    border-color: #5E81AC;
+    border-bottom-color: #FFFFFF; /* Makes tab connect with pane */
+}

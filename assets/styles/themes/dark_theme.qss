@@ -1,0 +1,188 @@
+/*
+ * Smart File Classifier v3.0 - Professional Dark Theme (Nord Color Palette)
+ * This stylesheet defines the complete visual identity of the application.
+ */
+
+/* --- Global Styles --- */
+QWidget {
+    background-color: #2E3440;
+    color: #ECEFF4;
+    font-family: Segoe UI, Arial, sans-serif;
+    font-size: 10pt;
+}
+
+QMainWindow {
+    background-color: #2E3440;
+}
+
+/* --- Labels & Text --- */
+QLabel {
+    background-color: transparent;
+    padding: 2px;
+}
+
+#TimerLabel, #StatusLabel {
+    font-weight: bold;
+    color: #D8DEE9; /* A slightly brighter text color for key info */
+}
+
+/* --- Input Fields --- */
+QLineEdit {
+    background-color: #3B4252;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    padding: 5px;
+    color: #D8DEE9;
+}
+
+QLineEdit:focus {
+    border: 1px solid #88C0D0;
+}
+
+/* --- Buttons --- */
+QPushButton {
+    background-color: #5E81AC;
+    color: #ECEFF4;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-weight: bold;
+    text-align: center;
+}
+
+QPushButton:hover {
+    background-color: #81A1C1;
+}
+
+QPushButton:pressed {
+    background-color: #88C0D0;
+}
+
+QPushButton:disabled {
+    background-color: #4C566A;
+    color: #6a7387;
+}
+
+/* --- Dropdown / ComboBox --- */
+QComboBox {
+    background-color: #3B4252;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    padding: 5px;
+    padding-left: 10px;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 25px;
+    border-left-width: 1px;
+    border-left-color: #4C566A;
+    border-left-style: solid;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+QComboBox::down-arrow {
+    image: url("../icons/down-arrow.svg");
+    width: 16px;
+    height: 16px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #3B4252;
+    border: 1px solid #4C566A;
+    selection-background-color: #5E81AC;
+}
+
+/* --- Progress Bar (Four-Color System) --- */
+QProgressBar {
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    text-align: center;
+    color: #ECEFF4;
+    font-weight: bold;
+}
+
+QProgressBar::chunk:running {
+    background-color: #5E81AC; /* Blue */
+}
+
+QProgressBar::chunk:success {
+    background-color: #A3BE8C; /* Green */
+}
+
+QProgressBar::chunk:paused {
+    background-color: #EBCB8B; /* Yellow */
+}
+
+QProgressBar::chunk:failed {
+    background-color: #BF616A; /* Red */
+}
+
+/* --- Professional TableView Styles (for the Log Viewer) --- */
+QTableView {
+    background-color: #3B4252;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    color: #D8DEE9;
+    font-family: Consolas, Courier New, monospace;
+    gridline-color: #434C5E;
+    alternate-background-color: #434C5E; /* Alternating row colors for readability */
+}
+
+QTableView::item {
+    padding: 5px;
+    border-bottom: 1px solid #434C5E; /* Subtle row separator */
+}
+
+QTableView::item:selected {
+    background-color: #88C0D0; /* A bright selection color */
+    color: #2E3440;
+}
+
+QHeaderView::section {
+    background-color: #4C566A;
+    color: #ECEFF4;
+    padding: 4px;
+    border: 1px solid #2E3440;
+    font-weight: bold;
+}
+
+/* --- Group Boxes & Tabs for a Polished Layout --- */
+QGroupBox {
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    margin-top: 1ex; /* leave space for title */
+    font-weight: bold;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 5px;
+}
+
+QTabWidget::pane {
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+QTabBar::tab {
+    background: #3B4252;
+    border: 1px solid #4C566A;
+    border-bottom-color: #4C566A;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    padding: 8px 16px;
+    font-weight: bold;
+}
+
+QTabBar::tab:selected, QTabBar::tab:hover {
+    background: #4C566A;
+}
+
+QTabBar::tab:selected {
+    border-color: #5E81AC;
+}

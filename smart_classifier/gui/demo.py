@@ -4,9 +4,8 @@ import logging
 import sys
 from pathlib import Path
 
-# --- PySide6 Imports (Corrected and Final) ---
+# --- PySide6 Imports ---
 from PySide6.QtCore import QObject, QThread, Signal, Slot, QSize, QTimer
-from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QProgressBar, QComboBox, QMessageBox,
@@ -14,22 +13,37 @@ from PySide6.QtWidgets import (
     QRadioButton
 )
 
-# --- Our Application's Own Modules (Correct and Final) ---
+# --- Our Application's Own Modules ---
+# This is the power of our modular design. We are now assembling our
+# application from a suite of professional, specialized components.
+
+# Core Engine Components
 from smart_classifier.core.classification_engine import ClassificationEngine, DEFAULT_UNKNOWN_CATEGORY
 from smart_classifier.core.file_operations import DuplicateStrategy, safe_move
 from smart_classifier.core.undo_manager import UndoManager
-from smart_classifier.core.config_manager import add_rule_to_config
 from smart_classifier.core.bulk_importer import BulkImporter
-from .resources import load_stylesheet, get_icon, ICON_SIZE, validate_assets, get_current_theme, set_current_theme
+from smart_classifier.core.config_manager import safely_add_or_update_rule
+
+# GUI Components
+from .resources import load_stylesheet, get_icon, ICON_SIZE, validate_assets
 from .widgets import DirectorySelector, StatusWidget
-from .log_viewer import LogViewer
-from .learning_dialog import LearningDialog
+from .log_viewer import LogViewer  # Our new, superior log viewer
+# (We don't import LogModel here because it's an internal part of LogViewer)
+
+# Utility Components
 from smart_classifier.utils.logger import setup_logging
 
 logger = logging.getLogger(__name__)
 
-# --- Worker Threads (Correct and Final) ---
+
+# --- Worker Threads ---
+# These classes are the bridge between the UI and the non-blocking backend.
+
 class Worker(QObject):
+    """
+    The "Supervisor" worker for the main classification task. It is a self-contained
+    unit that handles the entire backend workflow, ensuring the UI never freezes.
+    """
     progress_percentage_updated = Signal(int)
     log_entry_created = Signal(dict)
     finished = Signal()
@@ -37,58 +51,90 @@ class Worker(QObject):
 
     def __init__(self, engine, source_dir, dest_dir, strategy, mode, selected_paths=None):
         super().__init__()
-        self.engine = engine; self.source_dir = source_dir; self.dest_dir = dest_dir;
-        self.strategy = strategy; self.mode = mode;
+        self.engine = engine
+        self.source_dir = source_dir
+        self.dest_dir = dest_dir
+        self.strategy = strategy
+        self.mode = mode
         self.selected_paths = selected_paths if selected_paths else []
 
     @Slot()
     def run(self):
+        """Orchestrates the entire backend workflow in a background thread."""
         try:
-            if self.mode == "MOVE_AS_IS": self.run_move_as_is()
-            else: self.run_classification()
+            if self.mode == "MOVE_AS_IS":
+                self.run_move_as_is()
+            else:  # Covers "FULL_CLASSIFY" and "SELECTIVE_CLASSIFY"
+                self.run_classification()
         except Exception as e:
             logger.critical(f"Worker thread error: {e}", exc_info=True)
             self.error_occurred.emit(str(e))
-        finally: self.finished.emit()
+        finally:
+            self.finished.emit()
 
     def run_classification(self):
+        """Handles both full and selective classification."""
         self.engine.reset_state()
+
         files_to_process = []
         if self.mode == "FULL_CLASSIFY":
             self.log_entry_created.emit({"status": "INFO", "message": f"Scanning directory: {self.source_dir}"})
             files_to_process = self.engine.scan_directory(self.source_dir)
         elif self.mode == "SELECTIVE_CLASSIFY":
-            self.log_entry_created.emit({"status": "INFO", "message": f"Processing {len(self.selected_paths)} selected files..."})
+            self.log_entry_created.emit(
+                {"status": "INFO", "message": f"Processing {len(self.selected_paths)} selected files..."})
             files_to_process = [Path(p) for p in self.selected_paths if Path(p).is_file()]
+
         plan = self.engine.generate_plan(files_to_process, self.dest_dir)
         if not plan:
             self.log_entry_created.emit({"status": "DONE", "message": "No files found to classify."})
             self.progress_percentage_updated.emit(100)
             return
+
+        # Connect the engine's callback to our internal aggregator
         self.engine.execute_plan(plan, self.strategy, self._handle_engine_progress)
 
     def run_move_as_is(self):
+        """Handles the 'Move Folders As-Is' operation."""
         total_items = len(self.selected_paths)
-        if total_items == 0: return
+        if total_items == 0:
+            self.log_entry_created.emit({"status": "DONE", "message": "No items were selected to move."})
+            self.progress_percentage_updated.emit(100)
+            return
+
+        # Create a dedicated sub-folder in the destination for these items.
         move_as_is_dir = self.dest_dir / "Moved_As_Is"
+
         for i, path_str in enumerate(self.selected_paths):
             item_path = Path(path_str)
+
             project_type = self.engine._is_project_directory(item_path) if item_path.is_dir() else None
-            dest = move_as_is_dir / "Software_Projects" if project_type else move_as_is_dir
-            status, _ = safe_move(item_path, dest, self.strategy)
-            msg = f"{item_path.name} ({project_type})" if project_type else item_path.name
-            self.log_entry_created.emit({"status": status, "message": msg})
+            if project_type:
+                project_dest_dir = move_as_is_dir / "Software_Projects"
+                status, _ = safe_move(item_path, project_dest_dir, self.strategy)
+                msg = f"{item_path.name} ({project_type})"
+                self.log_entry_created.emit({"status": status, "message": msg})
+            else:
+                status, _ = safe_move(item_path, move_as_is_dir, self.strategy)
+                self.log_entry_created.emit({"status": status, "message": item_path.name})
+
             self.progress_percentage_updated.emit(int(((i + 1) / total_items) * 100))
 
     @Slot(int, str, str)
     def _handle_engine_progress(self, percentage, file_name, status):
-        if percentage != -1: self.progress_percentage_updated.emit(percentage)
-        if file_name != "...": self.log_entry_created.emit({"status": status, "message": file_name})
+        """Receives raw data from the engine and emits refined signals to the UI."""
+        if percentage != -1:
+            self.progress_percentage_updated.emit(percentage)
+        if file_name != "...":
+            self.log_entry_created.emit({"status": status, "message": file_name})
+
 
 class UndoWorker(QObject):
+    """The dedicated worker for the Undo task."""
     progress_updated = Signal(int, int, str)
     finished = Signal()
     error_occurred = Signal(str)
+
     @Slot()
     def run(self):
         try:
@@ -99,6 +145,7 @@ class UndoWorker(QObject):
         finally:
             self.finished.emit()
 
+
 # --- Main Application Window ---
 # --- Main Application Window (Final Corrected Version) ---
 class MainWindow(QMainWindow):
@@ -108,23 +155,26 @@ class MainWindow(QMainWindow):
     """
 
     def __init__(self):
+        """The constructor for the main window."""
         super().__init__()
         self.setWindowTitle(" Smart File Classifier v3.0")
         self.setWindowIcon(get_icon("app_icon"))
         self.setGeometry(100, 100, 900, 750)
-        self._create_menus()
+
         self.engine = None
         self.active_thread = None
         self.active_worker = None
+
         self.elapsed_time = 0
         self.operation_timer = QTimer(self)
         self.operation_timer.setInterval(1000)
+
         self.init_ui()
         self.connect_signals()
         self.initialize_engine()
-        self._update_button_states("IDLE")
 
     def init_ui(self):
+        """Creates and arranges all widgets using our reusable components and a resilient layout."""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
@@ -133,6 +183,7 @@ class MainWindow(QMainWindow):
 
         self.source_selector = DirectorySelector("Source Directory:")
         self.dest_selector = DirectorySelector("Destination Directory:")
+
         options_layout = QHBoxLayout()
         self.duplicates_label = QLabel("Duplicate Files:")
         self.duplicates_combo = QComboBox()
@@ -142,7 +193,6 @@ class MainWindow(QMainWindow):
         options_layout.addStretch()
 
         mode_group = QGroupBox("Advanced Operation Modes (Optional)")
-        mode_group.setObjectName("Advanced Operation Modes (Optional)")
         mode_group.setCheckable(True)
         mode_group.setChecked(False)
         mode_layout = QVBoxLayout()
@@ -172,9 +222,9 @@ class MainWindow(QMainWindow):
         self.source_selector.browse_button.setIcon(get_icon("folder-open"))
         self.dest_selector.browse_button.setIcon(get_icon("folder-open"))
 
-        all_buttons = [self.start_button, self.pause_button, self.resume_button, self.cancel_button,
-                       self.dry_run_button, self.undo_button, self.source_selector.browse_button,
-                       self.dest_selector.browse_button]
+        all_buttons = [self.start_button, self.pause_button, self.resume_button,
+                       self.cancel_button, self.dry_run_button, self.undo_button,
+                       self.source_selector.browse_button, self.dest_selector.browse_button]
         for btn in all_buttons:
             btn.setIconSize(ICON_SIZE)
 
@@ -326,46 +376,6 @@ class MainWindow(QMainWindow):
 
         self.status_widget.set_status("Dry run complete. Review the plan below.")
         self._update_button_states("IDLE")
-
-    def _create_menus(self):
-        """Creates the main menu bar for the application."""
-        menu_bar = self.menuBar()
-
-        # --- Settings Menu ---
-        settings_menu = menu_bar.addMenu("&Settings")
-
-        # --- Theme Sub-Menu ---
-        theme_menu = settings_menu.addMenu("Theme")
-        theme_group = QActionGroup(self)
-        theme_group.setExclusive(True)
-
-        dark_theme_action = QAction("Dark Theme (Default)", self, checkable=True)
-        dark_theme_action.triggered.connect(lambda: self._handle_theme_change("dark_theme.qss"))
-
-        light_theme_action = QAction("Light Theme", self, checkable=True)
-        light_theme_action.triggered.connect(lambda: self._handle_theme_change("light_theme.qss"))
-
-        theme_menu.addAction(dark_theme_action)
-        theme_menu.addAction(light_theme_action)
-        theme_group.addAction(dark_theme_action)
-        theme_group.addAction(light_theme_action)
-
-        # Set the currently active theme checkmark on startup
-        current_theme = get_current_theme()
-        if current_theme == "light_theme.qss":
-            light_theme_action.setChecked(True)
-        else:
-            dark_theme_action.setChecked(True)
-
-    @Slot(str)
-    def _handle_theme_change(self, theme_filename: str):
-        """Applies the selected theme and saves the choice."""
-        if set_current_theme(theme_filename):
-            QApplication.instance().setStyleSheet(load_stylesheet())
-            QMessageBox.information(self, "Theme Changed",
-                                    f"Theme changed successfully.\nSome changes may require an application restart to fully apply.")
-        else:
-            self.show_error_message("Could not save theme setting. Please check file permissions.")
 
     @Slot()
     def handle_undo(self):
@@ -530,27 +540,12 @@ class MainWindow(QMainWindow):
         else:
             event.accept()
 
-
 def run_gui():
     """The entry point for the GUI application."""
-
-    # Step 1: Configure the application-wide logging system.
     setup_logging()
-
-    # Step 2: Validate that all required assets (icons, styles) are present.
     validate_assets()
-
-    # Step 3: Create the core Qt application instance.
     app = QApplication(sys.argv)
-
-    # Step 4: Load and apply our professional dark theme stylesheet.
     app.setStyleSheet(load_stylesheet())
-
-    # Step 5: Create our main window. This calls the __init__ method we perfected.
     window = MainWindow()
-
-    # Step 6: Make the window visible to the user.
     window.show()
-
-    # Step 7: Start the application's main event loop and ensure a clean exit.
     sys.exit(app.exec())
