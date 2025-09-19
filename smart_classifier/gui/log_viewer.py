@@ -21,7 +21,7 @@ class LogViewer(QTableView):
         super().__init__(parent)
 
         # This is the crucial link in the MVC pattern. The View now has a reference
-        # to its data Model.
+        # to its data Model, which it will query for all display information.
         self._model = LogModel(self)
         self.setModel(self._model)
 
@@ -29,36 +29,38 @@ class LogViewer(QTableView):
 
         # When a user clicks, highlight the entire row, not just a single cell.
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
-        # Make the log read-only.
+        # Make the log read-only to prevent accidental user edits.
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        # For performance and clarity, don't wrap long lines.
+        # For performance and clarity, don't wrap long lines in the table.
         self.setWordWrap(False)
-        # A subtle visual touch to make the table look cleaner.
+        # A subtle visual touch to make the table look cleaner without grid lines.
         self.setShowGrid(False)
 
         # --- Intelligent Column Sizing for a Resilient Layout ---
         header = self.horizontalHeader()
 
         # The Status icon column (index 0) should be just wide enough for the icon.
+        # This prevents it from taking up unnecessary space.
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
 
         # The Message column (index 1) is the most important. It will automatically
-        # stretch to fill any available space when the window is resized. This is
-        # the key to a smooth, responsive layout.
+        # stretch to fill any available horizontal space when the window is resized. This is
+        # the key to a smooth, professional, and responsive layout.
         header.setSectionResizeMode(1, QHeaderView.Stretch)
 
         # The Time column (index 2) should be just wide enough for the timestamp.
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
 
-        # Hiding the vertical header (row numbers) gives a cleaner, more modern look.
+        # Hiding the vertical header (which shows row numbers) gives a cleaner,
+        # more modern look, as the timestamp already provides a sequence.
         self.verticalHeader().hide()
 
-    # --- Custom Public Methods ---
+    # --- Custom Public Methods (The "API" for the MainWindow) ---
 
     def add_log_entry(self, status: str, message: str):
         """
         A convenient public method that passes a new log entry to the model.
-        It also ensures the view automatically scrolls to the newest entry.
+        It also ensures the view automatically scrolls to show the newest entry.
         """
         self._model.add_entry(status, message)
         self.scrollToBottom()

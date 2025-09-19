@@ -1,12 +1,13 @@
 /*
  * Smart File Classifier v3.0 - Professional Dark Theme (Nord Color Palette)
  * This stylesheet defines the complete visual identity of the application.
+ * It is designed for clarity, comfort, and a professional aesthetic.
  */
 
 /* --- Global Styles --- */
 QWidget {
-    background-color: #2E3440;
-    color: #ECEFF4;
+    background-color: #2E3440; /* Nord Polar Night - Deep Blue/Grey */
+    color: #ECEFF4; /* Nord Snow Storm - Off-White */
     font-family: Segoe UI, Arial, sans-serif;
     font-size: 10pt;
 }
@@ -18,12 +19,13 @@ QMainWindow {
 /* --- Labels & Text --- */
 QLabel {
     background-color: transparent;
+    color: #D8DEE9; /* Softer white for general labels */
     padding: 2px;
 }
 
 #TimerLabel, #StatusLabel {
     font-weight: bold;
-    color: #D8DEE9; /* A slightly brighter text color for key info */
+    color: #ECEFF4; /* Brightest white for key information */
 }
 
 /* --- Input Fields --- */
@@ -36,12 +38,12 @@ QLineEdit {
 }
 
 QLineEdit:focus {
-    border: 1px solid #88C0D0;
+    border: 1px solid #88C0D0; /* Nord Frost - Light Blue Accent */
 }
 
 /* --- Buttons --- */
 QPushButton {
-    background-color: #5E81AC;
+    background-color: #5E81AC; /* Nord Frost - Medium Blue */
     color: #ECEFF4;
     border: none;
     border-radius: 4px;
@@ -51,11 +53,11 @@ QPushButton {
 }
 
 QPushButton:hover {
-    background-color: #81A1C1;
+    background-color: #81A1C1; /* Lighter blue on hover */
 }
 
 QPushButton:pressed {
-    background-color: #88C0D0;
+    background-color: #88C0D0; /* Brightest blue when clicked */
 }
 
 QPushButton:disabled {
@@ -109,15 +111,15 @@ QProgressBar::chunk:running {
 }
 
 QProgressBar::chunk:success {
-    background-color: #A3BE8C; /* Green */
+    background-color: #A3BE8C; /* Nord Aurora - Green */
 }
 
 QProgressBar::chunk:paused {
-    background-color: #EBCB8B; /* Yellow */
+    background-color: #EBCB8B; /* Nord Aurora - Yellow */
 }
 
 QProgressBar::chunk:failed {
-    background-color: #BF616A; /* Red */
+    background-color: #BF616A; /* Nord Aurora - Red */
 }
 
 /* --- Professional TableView Styles (for the Log Viewer) --- */
@@ -133,12 +135,12 @@ QTableView {
 
 QTableView::item {
     padding: 5px;
-    border-bottom: 1px solid #434C5E; /* Subtle row separator */
+    border: none; /* Cleaner look without internal borders */
 }
 
 QTableView::item:selected {
     background-color: #88C0D0; /* A bright selection color */
-    color: #2E3440;
+    color: #2E3440; /* Dark text for contrast on selection */
 }
 
 QHeaderView::section {
@@ -149,7 +151,7 @@ QHeaderView::section {
     font-weight: bold;
 }
 
-/* --- Group Boxes & Tabs for a Polished Layout --- */
+/* --- Layout & Container Styles --- */
 QGroupBox {
     border: 1px solid #4C566A;
     border-radius: 4px;
@@ -161,6 +163,15 @@ QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
     padding: 0 5px;
+}
+
+QRadioButton {
+    spacing: 5px;
+}
+
+QRadioButton::indicator {
+    width: 13px;
+    height: 13px;
 }
 
 QTabWidget::pane {
@@ -185,4 +196,296 @@ QTabBar::tab:selected, QTabBar::tab:hover {
 
 QTabBar::tab:selected {
     border-color: #5E81AC;
+}
+
+/* --- The "Master's Touch": ScrollBar Styling --- */
+QScrollBar:vertical {
+    background: #3B4252;
+    width: 15px;
+    margin: 0px 0px 0px 0px;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:vertical {
+    background: #5E81AC;
+    min-height: 20px;
+    border-radius: 3px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #81A1C1;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px; /* Hide the little arrows for a modern look */
+    background: none;
+}
+
+QScrollBar:horizontal {
+    background: #3B4252;
+    height: 15px;
+    margin: 0px 0px 0px 0px;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:horizontal {
+    background: #5E81AC;
+    min-width: 20px;
+    border-radius: 3px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #81A1C1;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+    background: none;
+}/*
+ * Smart File Classifier v3.0 - Professional Dark Theme (Nord Color Palette)
+ * This stylesheet defines the complete visual identity of the application.
+ * It is designed for clarity, comfort, and a professional aesthetic.
+ */
+
+/* --- Global Styles --- */
+QWidget {
+    background-color: #2E3440; /* Nord Polar Night - Deep Blue/Grey */
+    color: #ECEFF4; /* Nord Snow Storm - Off-White */
+    font-family: Segoe UI, Arial, sans-serif;
+    font-size: 10pt;
+}
+
+QMainWindow {
+    background-color: #2E3440;
+}
+
+/* --- Labels & Text --- */
+QLabel {
+    background-color: transparent;
+    color: #D8DEE9; /* Softer white for general labels */
+    padding: 2px;
+}
+
+#TimerLabel, #StatusLabel {
+    font-weight: bold;
+    color: #ECEFF4; /* Brightest white for key information */
+}
+
+/* --- Input Fields --- */
+QLineEdit {
+    background-color: #3B4252;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    padding: 5px;
+    color: #D8DEE9;
+}
+
+QLineEdit:focus {
+    border: 1px solid #88C0D0; /* Nord Frost - Light Blue Accent */
+}
+
+/* --- Buttons --- */
+QPushButton {
+    background-color: #5E81AC; /* Nord Frost - Medium Blue */
+    color: #ECEFF4;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-weight: bold;
+    text-align: center;
+}
+
+QPushButton:hover {
+    background-color: #81A1C1; /* Lighter blue on hover */
+}
+
+QPushButton:pressed {
+    background-color: #88C0D0; /* Brightest blue when clicked */
+}
+
+QPushButton:disabled {
+    background-color: #4C566A;
+    color: #6a7387;
+}
+
+/* --- Dropdown / ComboBox --- */
+QComboBox {
+    background-color: #3B4252;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    padding: 5px;
+    padding-left: 10px;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 25px;
+    border-left-width: 1px;
+    border-left-color: #4C566A;
+    border-left-style: solid;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+QComboBox::down-arrow {
+    image: url("../icons/down-arrow.svg");
+    width: 16px;
+    height: 16px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #3B4252;
+    border: 1px solid #4C566A;
+    selection-background-color: #5E81AC;
+}
+
+/* --- Progress Bar (Four-Color System) --- */
+QProgressBar {
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    text-align: center;
+    color: #ECEFF4;
+    font-weight: bold;
+}
+
+QProgressBar::chunk:running {
+    background-color: #5E81AC; /* Blue */
+}
+
+QProgressBar::chunk:success {
+    background-color: #A3BE8C; /* Nord Aurora - Green */
+}
+
+QProgressBar::chunk:paused {
+    background-color: #EBCB8B; /* Nord Aurora - Yellow */
+}
+
+QProgressBar::chunk:failed {
+    background-color: #BF616A; /* Nord Aurora - Red */
+}
+
+/* --- Professional TableView Styles (for the Log Viewer) --- */
+QTableView {
+    background-color: #3B4252;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    color: #D8DEE9;
+    font-family: Consolas, Courier New, monospace;
+    gridline-color: #434C5E;
+    alternate-background-color: #434C5E; /* Alternating row colors for readability */
+}
+
+QTableView::item {
+    padding: 5px;
+    border: none; /* Cleaner look without internal borders */
+}
+
+QTableView::item:selected {
+    background-color: #88C0D0; /* A bright selection color */
+    color: #2E3440; /* Dark text for contrast on selection */
+}
+
+QHeaderView::section {
+    background-color: #4C566A;
+    color: #ECEFF4;
+    padding: 4px;
+    border: 1px solid #2E3440;
+    font-weight: bold;
+}
+
+/* --- Layout & Container Styles --- */
+QGroupBox {
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    margin-top: 1ex; /* leave space for title */
+    font-weight: bold;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 5px;
+}
+
+QRadioButton {
+    spacing: 5px;
+}
+
+QRadioButton::indicator {
+    width: 13px;
+    height: 13px;
+}
+
+QTabWidget::pane {
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+QTabBar::tab {
+    background: #3B4252;
+    border: 1px solid #4C566A;
+    border-bottom-color: #4C566A;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    padding: 8px 16px;
+    font-weight: bold;
+}
+
+QTabBar::tab:selected, QTabBar::tab:hover {
+    background: #4C566A;
+}
+
+QTabBar::tab:selected {
+    border-color: #5E81AC;
+}
+
+/* --- The "Master's Touch": ScrollBar Styling --- */
+QScrollBar:vertical {
+    background: #3B4252;
+    width: 15px;
+    margin: 0px 0px 0px 0px;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:vertical {
+    background: #5E81AC;
+    min-height: 20px;
+    border-radius: 3px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #81A1C1;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px; /* Hide the little arrows for a modern look */
+    background: none;
+}
+
+QScrollBar:horizontal {
+    background: #3B4252;
+    height: 15px;
+    margin: 0px 0px 0px 0px;
+    border: 1px solid #4C566A;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:horizontal {
+    background: #5E81AC;
+    min-width: 20px;
+    border-radius: 3px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #81A1C1;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+    background: none;
 }

@@ -1,12 +1,13 @@
 /*
  * Smart File Classifier v3.0 - Professional Light Theme (Nord Color Palette)
- * This stylesheet provides a clean, readable, and calming light theme experience.
+ * This stylesheet provides a clean, readable, and calming light theme experience,
+ * designed for optimal contrast and visual comfort in bright environments.
  */
 
 /* --- Global Styles --- */
 QWidget {
-    background-color: #ECEFF4; /* Light background */
-    color: #2E3440; /* Dark text for high contrast */
+    background-color: #ECEFF4; /* Nord Snow Storm - Light Background */
+    color: #2E3440; /* Nord Polar Night - Dark Text */
     font-family: Segoe UI, Arial, sans-serif;
     font-size: 10pt;
 }
@@ -18,7 +19,7 @@ QMainWindow {
 /* --- Labels & Text --- */
 QLabel {
     background-color: transparent;
-    color: #4C566A; /* Slightly softer dark text */
+    color: #4C566A; /* Softer dark text for general labels */
     padding: 2px;
 }
 
@@ -29,8 +30,8 @@ QLabel {
 
 /* --- Input Fields --- */
 QLineEdit {
-    background-color: #FFFFFF;
-    border: 1px solid #D8DEE9;
+    background-color: #FFFFFF; /* Pure white for input clarity */
+    border: 1px solid #D8DEE9; /* Soft grey border */
     border-radius: 4px;
     padding: 5px;
     color: #2E3440;
@@ -42,7 +43,7 @@ QLineEdit:focus {
 
 /* --- Buttons --- */
 QPushButton {
-    background-color: #E5E9F0;
+    background-color: #E5E9F0; /* Light grey background */
     color: #434C5E;
     border: 1px solid #D8DEE9;
     border-radius: 4px;
@@ -57,8 +58,9 @@ QPushButton:hover {
 }
 
 QPushButton:pressed {
-    background-color: #B48EAD; /* A soft purple for pressed state */
+    background-color: #5E81AC; /* Blue accent when clicked */
     color: #ECEFF4;
+    border-color: #5E81AC;
 }
 
 QPushButton:disabled {
@@ -88,7 +90,7 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    image: url("../icons/down-arrow-dark.svg"); /* Requires a dark version of the arrow */
+    image: url("../icons/down-arrow-dark.svg"); /* Requires a dark version of the arrow icon */
     width: 16px;
     height: 16px;
 }
@@ -96,8 +98,8 @@ QComboBox::down-arrow {
 QComboBox QAbstractItemView {
     background-color: #FFFFFF;
     border: 1px solid #D8DEE9;
-    selection-background-color: #5E81AC; /* Blue accent for selection */
-    selection-color: #ECEFF4; /* Light text on blue background */
+    selection-background-color: #5E81AC;
+    selection-color: #ECEFF4;
 }
 
 /* --- Progress Bar (Four-Color System) --- */
@@ -134,17 +136,17 @@ QTableView {
     color: #434C5E;
     font-family: Consolas, Courier New, monospace;
     gridline-color: #E5E9F0;
-    alternate-background-color: #ECEFF4; /* Subtle alternating row colors */
+    alternate-background-color: #F8F9FB; /* Very subtle alternating row color */
 }
 
 QTableView::item {
     padding: 5px;
-    border-bottom: 1px solid #E5E9F0;
+    border: none;
 }
 
 QTableView::item:selected {
-    background-color: #5E81AC; /* Blue accent for selection */
-    color: #ECEFF4; /* Light text on blue background */
+    background-color: #5E81AC;
+    color: #ECEFF4;
 }
 
 QHeaderView::section {
@@ -155,7 +157,7 @@ QHeaderView::section {
     font-weight: bold;
 }
 
-/* --- Group Boxes & Tabs for a Polished Layout --- */
+/* --- Layout & Container Styles --- */
 QGroupBox {
     border: 1px solid #D8DEE9;
     border-radius: 4px;
@@ -186,10 +188,57 @@ QTabBar::tab {
 }
 
 QTabBar::tab:selected, QTabBar::tab:hover {
-    background: #FFFFFF;
+    background: #FFFFFF; /* Make the selected tab white */
 }
 
 QTabBar::tab:selected {
-    border-color: #5E81AC;
-    border-bottom-color: #FFFFFF; /* Makes tab connect with pane */
+    border-color: #D8DEE9;
+    border-bottom-color: #FFFFFF; /* Makes tab connect seamlessly with pane */
+}
+
+/* --- The "Master's Touch": ScrollBar Styling for Light Theme --- */
+QScrollBar:vertical {
+    background: #E5E9F0;
+    width: 15px;
+    margin: 0px 0px 0px 0px;
+    border: 1px solid #D8DEE9;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:vertical {
+    background: #B6BFCB; /* A subtle grey handle */
+    min-height: 20px;
+    border-radius: 3px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #A3B1CC;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+    background: none;
+}
+
+QScrollBar:horizontal {
+    background: #E5E9F0;
+    height: 15px;
+    margin: 0px 0px 0px 0px;
+    border: 1px solid #D8DEE9;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:horizontal {
+    background: #B6BFCB;
+    min-width: 20px;
+    border-radius: 3px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #A3B1CC;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+    background: none;
 }
