@@ -1,13 +1,12 @@
 # smart_classifier/gui/main_window.py
 
 import sys
-
-from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QApplication, QMainWindow, QTabWidget, QMessageBox
 from PySide6.QtGui import QAction, QActionGroup
+from PySide6.QtCore import Slot
 
 # --- Our Application's Own, Final Modules ---
-# We import the final, modular components of our new architecture.
+# We now import our new, superior, modular components.
 from .tabs.classifier_tab import ClassifierTab
 from .tabs.knowledge_tab import KnowledgeTab
 from .action_controller import ActionController
@@ -28,13 +27,16 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(get_icon("app_icon"))
         self.setGeometry(100, 100, 900, 750)
 
-        # The core application logic is now in a dedicated, decoupled controller.
+        # --- The Great Assembly ---
+
+        # 1. The Brain is born.
+        # We pass 'self' so the controller can use this window as a parent for dialogs.
         self.action_controller = ActionController(self)
 
-        # --- Create the menu bar for advanced features like theme switching ---
+        # 2. The Sacred Spaces are created.
         self._create_menus()
 
-        # --- Create and Assemble the Tabs ---
+        # 3. The Halls of our Temple are built.
         self.tab_widget = QTabWidget()
         self.classifier_tab = ClassifierTab(self.action_controller)
         self.knowledge_tab = KnowledgeTab(self.action_controller)
@@ -44,8 +46,7 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(self.tab_widget)
 
-        # --- Final Signal Connection ---
-        # The main window's only job is to show messages from the controller.
+        # 4. The final connection is made. The window listens for commands from the brain.
         self.action_controller.show_message_box.connect(self._show_message_box)
 
     def _create_menus(self):
@@ -82,6 +83,8 @@ class MainWindow(QMainWindow):
         """A dedicated slot to show message boxes requested by the controller."""
         if msg_type == "critical":
             QMessageBox.critical(self, title, message)
+        elif msg_type == "warning":
+            QMessageBox.warning(self, title, message)
         else:
             QMessageBox.information(self, title, message)
 
@@ -91,13 +94,11 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Ensures the application closes gracefully."""
-        # The controller now owns the thread, so we ask it if it's idle.
         if not self.action_controller.is_idle():
             reply = QMessageBox.question(self, 'Operation in Progress',
                                          "A task is running. Are you sure you want to quit?",
                                          QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
-                # We ask the controller to gracefully cancel before accepting.
                 self.action_controller.cancel_operation()
                 event.accept()
             else:

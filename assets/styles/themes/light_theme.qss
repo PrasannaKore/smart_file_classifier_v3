@@ -90,7 +90,7 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    image: url("../icons/down-arrow-dark.svg"); /* Requires a dark version of the arrow icon */
+    image: url("../smart_file_classifier_v3/assets/icons/down-arrow.svg"); /* Requires a dark version of the arrow icon */
     width: 16px;
     height: 16px;
 }

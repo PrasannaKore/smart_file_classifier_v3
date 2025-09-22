@@ -86,7 +86,7 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    image: url("../icons/down-arrow.svg");
+    image: url("../smart_file_classifier_v3/assets/icons/down-arrow.svg");
     width: 16px;
     height: 16px;
 }
@@ -332,7 +332,7 @@ QComboBox::drop-down {
 
 QComboBox::down-arrow {
     /* The path is now simpler and more robust because we set the search path */
-    image: url("assets:assets/icons/down-arrow.svg");
+    image: url("assets:../assets/icons/down-arrow.svg");
     width: 16px;
     height: 16px;
 }

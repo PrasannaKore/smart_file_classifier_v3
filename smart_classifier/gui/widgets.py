@@ -1,15 +1,18 @@
 # smart_classifier/gui/widgets.py
+from pathlib import Path
 
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog,
-    QSizePolicy
+    QSizePolicy, QVBoxLayout
 )
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, Signal, Qt
 
 # We import our resource manager to make our widgets self-sufficient and
 # ensure they use the same, consistent icons and sizes as the rest of the application.
 from .resources import get_icon, ICON_SIZE
 
+# Add QListWidget to the imports at the top of widgets.py
+from PySide6.QtWidgets import QListWidget, QAbstractItemView
 
 # --- Custom Widget 1: The Directory Selector ---
 class DirectorySelector(QWidget):
@@ -112,3 +115,60 @@ class StatusWidget(QWidget):
             self.status_message.setStyleSheet("color: #BF616A;")  # Nord Red
         else:
             self.status_message.setStyleSheet("color: #ECEFF4;")  # Default Nord Light Text
+
+
+class MultiDirectorySelector(QWidget):
+    """
+    A superior, reusable widget for selecting multiple directories.
+    It uses a list-based approach for a clear and professional user experience.
+    """
+    # This is the "voice" of the widget. It will notify the main tab when its list changes.
+    pathsChanged = Signal()
+
+    def __init__(self, label_text: str, parent=None):
+        super().__init__(parent)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.label = QLabel(label_text)
+        self.list_widget = QListWidget()
+        self.list_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        button_layout = QHBoxLayout()
+        self.add_button = QPushButton("  Add Directory...")
+        self.remove_button = QPushButton("  Remove Selected")
+        self.add_button.setIcon(get_icon("folder-open"))
+        self.remove_button.setIcon(get_icon("cancel"))
+        button_layout.addWidget(self.add_button)
+        button_layout.addWidget(self.remove_button)
+        button_layout.addStretch()
+
+        main_layout.addWidget(self.label)
+        main_layout.addWidget(self.list_widget)
+        main_layout.addLayout(button_layout)
+
+        self.add_button.clicked.connect(self._add_directory)
+        self.remove_button.clicked.connect(self._remove_selected)
+
+    @Slot()
+    def _add_directory(self):
+        """Opens a dialog to select a single directory to add to the list."""
+        last_dir = self.list_widget.item(self.list_widget.count() - 1).text() if self.list_widget.count() > 0 else str(
+            Path.home())
+        dir_path = QFileDialog.getExistingDirectory(self, "Select Directory to Add", last_dir)
+        if dir_path:
+            if not self.list_widget.findItems(dir_path, Qt.MatchExactly):
+                self.list_widget.addItem(dir_path)
+                self.pathsChanged.emit()  # Notify that the list has changed
+
+    @Slot()
+    def _remove_selected(self):
+        """Removes all currently selected items from the list."""
+        for item in self.list_widget.selectedItems():
+            self.list_widget.takeItem(self.list_widget.row(item))
+        self.pathsChanged.emit()  # Notify that the list has changed
+
+    def paths(self) -> list[str]:
+        """Returns a list of all directory paths currently in the widget."""
+        return [self.list_widget.item(i).text() for i in range(self.list_widget.count())]

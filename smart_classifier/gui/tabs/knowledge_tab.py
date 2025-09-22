@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QPushButton, QLabel, QGroupBox, QSpacerItem, QSizePolicy
 )
 
+# We import the brain and resources needed for this tab.
 from ..action_controller import ActionController
 from ..resources import get_icon, ICON_SIZE
 
@@ -13,17 +14,20 @@ from ..resources import get_icon, ICON_SIZE
 class KnowledgeTab(QWidget):
     """
     The UI for managing the application's knowledge base.
-    This is a "dumb" view that delegates all logic to the ActionController.
+    This includes features like bulk importing rules and, in the future, a full rule editor.
+    This widget is a "dumb" view that delegates all logic to the ActionController.
     """
 
     def __init__(self, controller: ActionController, parent=None):
         super().__init__(parent)
         self.controller = controller
 
+        # --- Build the UI for this tab ---
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(15, 15, 15, 15)
         main_layout.setSpacing(20)
 
+        # --- Bulk Import Section ---
         import_group = QGroupBox("Teach the Application")
         import_layout = QVBoxLayout()
 
@@ -31,14 +35,15 @@ class KnowledgeTab(QWidget):
             "You can teach the application about many new file types at once by creating a simple CSV file.\n"
             "This is the most powerful way to customize the classifier to your specific needs."
         )
-        import_label.setWordWrap(True)
+        import_label.setWordWrap(True)  # Ensures the text looks good on all window sizes.
 
         self.import_button = QPushButton("  Bulk Import Rules from CSV...")
         self.import_button.setIcon(get_icon("import"))
         self.import_button.setIconSize(ICON_SIZE)
 
+        # A button to help the user find the documentation for this powerful feature.
         self.help_button = QPushButton("  How to Create the CSV File (Help)")
-        self.help_button.setIcon(get_icon("info"))
+        self.help_button.setIcon(get_icon("info"))  # Using the info icon for help
         self.help_button.setIconSize(ICON_SIZE)
 
         import_layout.addWidget(import_label)
@@ -46,29 +51,43 @@ class KnowledgeTab(QWidget):
         import_layout.addWidget(self.help_button)
         import_group.setLayout(import_layout)
 
+        # --- Future Rule Editor Section (Placeholder) ---
+        # By adding this placeholder, we make the UI feel complete and show the
+        # user the future path of the application.
         editor_group = QGroupBox("Future: Rule Editor")
         editor_layout = QVBoxLayout()
         editor_label = QLabel(
             "A future update will include a full, interactive editor here to add, edit, and delete individual rules.")
         editor_label.setWordWrap(True)
-        editor_label.setEnabled(False)
+        editor_label.setEnabled(False)  # Greyed out to indicate it's not active yet.
         editor_layout.addWidget(editor_label)
         editor_group.setLayout(editor_layout)
 
+        # --- Final Layout Assembly ---
         main_layout.addWidget(import_group)
         main_layout.addWidget(editor_group)
+        # This spacer pushes all content to the top for a clean look.
         main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
+        # --- Signal Connections ---
+        # The button click is connected to a simple slot that calls the controller.
         self.import_button.clicked.connect(self._on_import_clicked)
         self.help_button.clicked.connect(self._open_help_link)
 
     @Slot()
     def _on_import_clicked(self):
-        # This UI component's job is simple: tell the controller to start the import process.
+        """
+        This UI component's job is simple: tell the controller (the "brain")
+        to start the bulk import process. It does not know how to do the import itself.
+        """
         self.controller.start_bulk_import()
 
     @Slot()
     def _open_help_link(self):
-        """Opens the link to the bulk import guide in the user's default web browser."""
+        """
+        Opens the link to the bulk import guide in the user's default web browser.
+        This is a professional touch that links our application directly to its documentation.
+        """
+        # NOTE: This link points directly to the file on your GitHub repository.
         help_url = "https://github.com/PrasannaKore/smart_file_classifier_v3/blob/main/docs/BULK_IMPORT_GUIDE.md"
         QDesktopServices.openUrl(QUrl(help_url))
