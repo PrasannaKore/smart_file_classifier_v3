@@ -331,7 +331,8 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    image: url("../icons/down-arrow.svg");
+    /* The path is now simpler and more robust because we set the search path */
+    image: url("assets:assets/icons/down-arrow.svg");
     width: 16px;
     height: 16px;
 }

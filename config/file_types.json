@@ -54,7 +54,15 @@
     "package-lock.json": "NPM Dependency Lock File",
     "webpack.config.js": "Webpack Configuration",
     "tsconfig.json": "TypeScript Configuration",
-    ".wasm": "WebAssembly Binary File"
+    ".wasm": "WebAssembly Binary File",
+    ".war": {
+      "description": ".war file (user-defined)",
+      "analysis_rules": []
+    },
+    ".jsp": {
+      "description": ".jsp file (user-defined)",
+      "analysis_rules": []
+    }
   },
   "Data Science": {
     ".ipynb": "Jupyter Notebook",
@@ -98,8 +106,14 @@
     ".bak": {
       "description": "Database Backup File",
       "analysis_rules": [
-        { "type": "content_contains", "contains_str": "SQL" },
-        { "type": "content_contains", "contains_str": "BACKUP" }
+        {
+          "type": "content_contains",
+          "contains_str": "SQL"
+        },
+        {
+          "type": "content_contains",
+          "contains_str": "BACKUP"
+        }
       ]
     }
   },
@@ -170,7 +184,11 @@
     ".mkv": "Matroska Video Container",
     ".mov": "Apple QuickTime Movie",
     ".avi": "Audio Video Interleave File",
-    ".webm": "WebM Video File"
+    ".webm": "WebM Video File",
+    ".wmv": {
+      "description": ".wmv file (user-defined)",
+      "analysis_rules": []
+    }
   },
   "Configuration & System": {
     ".json": "JavaScript Object Notation File",

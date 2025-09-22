@@ -103,22 +103,27 @@ def set_current_theme(theme_filename: str) -> bool:
         logger.error(f"Could not write to settings file at: {SETTINGS_FILE_PATH}")
         return False
 
-
 def load_stylesheet() -> str:
     """
     Loads the stylesheet for the theme currently specified in settings.json.
     This is the main function the application will call to style itself.
     """
+    """Loads the stylesheet and sets the search path for relative URLs like icons."""
+    # --- NEW: Set the search path ---
+    # This tells Qt that whenever it sees a relative path like `url("../icons/...")`
+    # in the stylesheet, it should start searching from our main assets directory.
+    # This is a robust, professional solution to the missing dropdown arrow.
+    from PySide6.QtCore import QDir
+    QDir.addSearchPath("assets", str(ASSETS_PATH))
+    # --- END NEW ---
+
     current_theme_file = get_current_theme()
     theme_path = STYLES_PATH / 'themes' / current_theme_file
-
     if theme_path.exists():
         logger.info(f"Loading theme: {current_theme_file}")
-        with open(theme_path, 'r', encoding='utf-8') as f:
-            return f.read()
-
-    logger.error(f"Failed to load theme file: {theme_path}. No theme will be applied.")
-    return ""  # Return empty string on failure
+        return theme_path.read_text(encoding='utf-8')
+    logger.error(f"Failed to load theme file: {theme_path}")
+    return ""
 
 
 def get_icon(name: str) -> QIcon:
