@@ -272,59 +272,99 @@ class ClassificationEngine:
         self._is_cancelled = False
         self._pause_event.set()
 
-    def execute_plan(self, plan: List[Tuple[Path, Path]], duplicate_strategy: DuplicateStrategy,
-                     progress_callback: Callable | None = None):
-        """Executes the plan using a high-performance, fully controllable Producer-Consumer pattern."""
+    def execute_plan(
+            self,
+            plan: List[Tuple[Path, Path]],
+            duplicate_strategy: DuplicateStrategy,
+            progress_callback: Callable[[int, str, str], None] | None =
+            None
+    ):
+        """
+        Executes the plan using a high-performance Producer-Consumer pattern with
+        a new, robust, graceful shutdown protocol for cancellation.
+        """
         total_files = len(plan)
         if total_files == 0: return
+
         self.reset_state()
         logger.info(f"Executing hybrid plan for {total_files} files...")
         UndoManager.clear_log()
+
         task_queue = queue.Queue(maxsize=get_optimal_thread_count() * 2)
         files_processed = 0
-        self._producer_done = False
 
         def consumer():
             """The worker function that runs in the thread pool."""
+            # The consumer now also checks the cancel flag for a faster exit.
             while not self._is_cancelled:
                 try:
+                    # We add a timeout to the pause check so it can periodically
+                    # re-check the main cancel flag.
                     self._pause_event.wait(timeout=0.1)
                     if self._is_cancelled: break
+
                     task = task_queue.get(timeout=0.1)
-                    if task is None: break
+                    if task is None:  # This is our "poison pill" signal to exit.
+                        break
+
                     source_path, dest_dir = task
                     status, final_dest_path = safe_move(source_path, dest_dir, duplicate_strategy)
                     if status == "MOVED":
                         UndoManager.log_move(source_path, final_dest_path)
+
                     if progress_callback:
                         progress_callback(-1, source_path.name, status)
+
                     task_queue.task_done()
                 except queue.Empty:
-                    if self._producer_done: break
+                    if self._producer_done:
+                        break
                 except Exception as e:
                     logger.error(f"Error in consumer thread: {e}", exc_info=True)
                     task_queue.task_done()
 
+        # --- The Producer ---
+        self._producer_done = False
         with ThreadPoolExecutor(max_workers=get_optimal_thread_count()) as executor:
             consumers = [executor.submit(consumer) for _ in range(get_optimal_thread_count())]
+
             try:
                 for source_path, dest_dir in plan:
                     self._pause_event.wait()
                     if self._is_cancelled:
                         logger.warning("Cancellation detected in producer.")
                         break
+
                     task_queue.put((source_path, dest_dir))
                     files_processed += 1
                     if progress_callback:
                         percentage = int((files_processed / total_files) * 100)
                         progress_callback(percentage, "...", "...")
             finally:
+                # --- THE DEFINITIVE GRACEFUL SHUTDOWN FIX ---
                 self._producer_done = True
+
+                # If the operation was cancelled, the .join() will deadlock.
+                # We must manually clear the queue to unblock it.
+                if self._is_cancelled:
+                    logger.info("Draining task queue for graceful shutdown...")
+                    # Empty the queue of any remaining tasks.
+                    while not task_queue.empty():
+                        try:
+                            task_queue.get_nowait()
+                            task_queue.task_done()
+                        except queue.Empty:
+                            break
+
+                # Wait for any "in-flight" tasks to finish.
+                task_queue.join()
+
+                # Now, wake up all consumer threads with a "poison pill" so they can exit.
                 for _ in consumers:
-                    try:
-                        task_queue.put(None, timeout=0.1)
-                    except queue.Full:
-                        pass
-                executor.shutdown(wait=True)
-                logger.info("All consumer threads have shut down.")
+                    task_queue.put(None)
+
+                # Wait for all consumer threads to fully terminate.
+                for future in consumers:
+                    future.result()
+
         logger.info("Execution of plan complete.")

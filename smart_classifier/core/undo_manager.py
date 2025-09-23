@@ -127,3 +127,16 @@ class UndoManager:
             progress_callback(total_moves, total_moves, "✅ Undo operation complete.")
 
         return True
+
+    # In UndoManager class in undo_manager.py
+
+    @staticmethod
+    def has_undo_log() -> bool:
+        """Checks if a valid, non-empty undo log exists."""
+        if not TRANSACTION_LOG_PATH.exists():
+            return False
+        try:
+            with open(TRANSACTION_LOG_PATH, 'r', encoding='utf-8') as f:
+                return bool(json.load(f))  # Return True only if the log is not an empty list
+        except (IOError, json.JSONDecodeError):
+            return False
