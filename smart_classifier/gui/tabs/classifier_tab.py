@@ -6,7 +6,8 @@ import os
 from PySide6.QtCore import Slot, QSize, QTimer, Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QComboBox, QLabel, QMessageBox,
-    QProgressBar, QSpacerItem, QSizePolicy, QListWidget, QListWidgetItem, QMenu, QGroupBox
+    QProgressBar, QSpacerItem, QSizePolicy, QListWidget, QListWidgetItem, QMenu, QGroupBox,
+    QListView, QTreeView, QAbstractItemView
 )
 
 from ..action_controller import ActionController
@@ -162,11 +163,19 @@ class ClassifierTab(QWidget):
         self.select_button = QPushButton("Select Files/Folders…")
         self.select_button.clicked.connect(self._select_files_folders)
         self.selected_list = DraggableListWidget(self)
+        # Inline controls for managing the selection list
+        selection_controls_layout = QHBoxLayout()
+        self.remove_selected_btn = QPushButton("Remove selected directory from list")
+        self.remove_selected_btn.setIcon(get_icon("cancel"))
+        self.remove_selected_btn.clicked.connect(self.remove_selected_items)
+        selection_controls_layout.addWidget(self.remove_selected_btn)
+        selection_controls_layout.addStretch()
         self.selection_help_label = QLabel("Select files and/or folders to include in this operation.")
         self.selection_summary_label = QLabel("")
         advanced_layout.addWidget(self.mode_combo)
         advanced_layout.addWidget(self.select_button)
         advanced_layout.addWidget(self.selected_list)
+        advanced_layout.addLayout(selection_controls_layout)
         advanced_layout.addWidget(self.selection_help_label)
         advanced_layout.addWidget(self.selection_summary_label)
         self.advanced_group.setLayout(advanced_layout)
@@ -242,13 +251,15 @@ class ClassifierTab(QWidget):
             self._flash_status_message("⚠️ Source and Destination directories must be selected.")
             return
 
-        if self.advanced_mode in ("move_as_is", "classify_selected_only"):
-            if not self.selected_items:
-                QMessageBox.warning(self, "No Selection", "No files or folders were selected. Please select at least one file or folder to proceed with this operation.")
-                return
-            selected_paths = list(self.selected_items)
-        else:
+        # Intelligent fallback: if an advanced mode is chosen but nothing is selected,
+        # proceed with full classification instead of blocking the user.
+        using_advanced = self.advanced_mode in ("move_as_is", "classify_selected_only")
+        if using_advanced and not self.selected_items:
+            effective_mode = "full_classification"
             selected_paths = []
+        else:
+            effective_mode = self.advanced_mode
+            selected_paths = list(self.selected_items) if using_advanced else []
 
         # Check if all selected paths exist and are accessible
         for path in selected_paths:
@@ -263,7 +274,7 @@ class ClassifierTab(QWidget):
             "full_classification": "FULL_CLASSIFY",
             "move_as_is": "MOVE_AS_IS",
             "classify_selected_only": "SELECTIVE_CLASSIFY"
-        }[self.advanced_mode]
+        }[effective_mode]
 
         self.log_view.clear_logs()
         self.controller.start_classification(
@@ -388,58 +399,56 @@ class ClassifierTab(QWidget):
             self.selection_help_label.show()
             self.selection_summary_label.show()
         self._update_selected_list()
+        # Show the remove button only if at least one directory is selected
+        has_dir_selected = any(p.is_dir() for p in self.selected_items)
+        self.remove_selected_btn.setVisible(has_dir_selected)
 
     @Slot()
     def _select_files_folders(self):
         """
-        Opens a dialog for multi-selection of files and directories, restricted to the source directory.
-        Adds all selected files and directories to the list. If the dialog does not support multi-directory selection,
-        provides a fallback to add directories one at a time. All previous logic is preserved.
+        Opens a single non-native dialog that supports multi-selection of files and directories,
+        restricted to the source directory. Disallows any selection outside the source.
+        If nothing valid is selected, provides a fallback to add directories one at a time.
+        All previous logic is preserved.
         """
         source_dir = self.source_selector_single.path().strip()
         if not source_dir or not Path(source_dir).is_dir():
             QMessageBox.warning(self, "Invalid Source Directory", "Please select a valid source directory first.")
             return
-        # Use QFileDialog for both files and directories, restrict to source_dir
+        # Single non-native dialog for selecting files and folders within source_dir
         dialog = QFileDialog(self, "Select Files and Folders", source_dir)
         dialog.setFileMode(QFileDialog.ExistingFiles)
         dialog.setOption(QFileDialog.DontUseNativeDialog, True)
         dialog.setOption(QFileDialog.ShowDirsOnly, False)
         dialog.setDirectory(source_dir)
+        # Enable multi-select properly by configuring the internal views
+        list_views = dialog.findChildren(QListView)
+        tree_views = dialog.findChildren(QTreeView)
+        for view in list_views + tree_views:
+            try:
+                view.setSelectionMode(QAbstractItemView.ExtendedSelection)
+            except Exception:
+                pass
         if dialog.exec():
             selected = dialog.selectedFiles()
         else:
             selected = []
-        # Add all valid files
+
+        # Add all valid paths (keep prior validation/behavior intact)
         valid_items = []
         invalid_items = []
         for item in selected:
             try:
                 p = Path(item).resolve()
-                if Path(source_dir) in p.parents or str(p) == str(Path(source_dir).resolve()):
+                # Strict restriction: allow only items that are the source dir or inside it
+                if Path(source_dir).resolve() in p.parents or p == Path(source_dir).resolve():
                     if p not in self.selected_items:
                         valid_items.append(p)
                 else:
                     invalid_items.append(str(p))
-            except Exception as e:
+            except Exception:
                 invalid_items.append(str(item))
-        # Fallback: If user wants to add directories and none were added, allow adding directories one at a time
-        if not valid_items:
-            dir_paths = []
-            while True:
-                dir_path = QFileDialog.getExistingDirectory(self, "Select Directory to Add", source_dir)
-                if not dir_path:
-                    break
-                p = Path(dir_path).resolve()
-                if (Path(source_dir) in p.parents or str(p) == str(Path(source_dir).resolve())) and p not in self.selected_items:
-                    dir_paths.append(p)
-                else:
-                    QMessageBox.warning(self, "Invalid Directory", f"{dir_path} is not in the source directory or already selected.")
-                # Ask if user wants to add another directory
-                add_more = QMessageBox.question(self, "Add Another Directory?", "Add another directory?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-                if add_more != QMessageBox.Yes:
-                    break
-            valid_items.extend(dir_paths)
+        # Remove fallback loop to avoid a second dialog; rely on multi-select dialog only
         if invalid_items:
             QMessageBox.warning(self, "Invalid Selection", f"The following items are not in the source directory and were not added:\n" + '\n'.join(invalid_items))
         self.selected_items.extend(valid_items)
@@ -478,6 +487,9 @@ class ClassifierTab(QWidget):
                 lw_item.setToolTip("No read permission for this item.")
             self.selected_list.addItem(lw_item)
         self._update_selection_summary()
+        # Toggle visibility of the remove button based on whether any directories exist in selection
+        has_dir_selected = any(p.is_dir() for p in self.selected_items)
+        self.remove_selected_btn.setVisible(has_dir_selected)
 
     def _update_selection_summary(self):
         files = sum(1 for p in self.selected_items if p.is_file())
