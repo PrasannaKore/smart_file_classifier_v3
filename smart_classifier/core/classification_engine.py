@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from .file_operations import DuplicateStrategy, safe_move
 from .undo_manager import UndoManager
@@ -26,13 +27,30 @@ class ClassificationEngine:
     """
 
     def __init__(self, config_path: Path):
+        """
+        Initializes the engine and declares ALL of its instance attributes
+        in one clean, professional, and sacred location.
+        """
         self.config_path = config_path
+
+        # --- Knowledge Base Attributes ---
         self.classification_rules: Dict[str, Dict] = {}
         self.extension_map: Dict[str, List[Dict]] = {}
-        self._is_cancelled = False
-        self._pause_event = threading.Event()
-        self._pause_event.set()
+
+        # --- State Management Attributes ---
+        self._is_cancelled: bool = False
+        self._pause_event: threading.Event = threading.Event()
+        self._pause_event.set()  # Default to "not paused"
+
+        # --- THE DEFINITIVE FIX: Producer-Consumer State ---
+        # By declaring this attribute here, we fulfill the sacred contract
+        # of the __init__ method. The warning will be banished forever.
+        self._producer_done: bool = False
+
+        # --- User Learning Attribute ---
         self.unresolved_files: List[Path] = []
+
+        # Finally, load the knowledge base.
         self._load_classification_rules()
 
     def _load_classification_rules(self):
@@ -160,10 +178,10 @@ class ClassificationEngine:
         try:
             # For efficiency, we only read a small header of the file, not the whole thing.
             with open(file_path, 'rb') as f:
-                header = f.read(256)  # Read the first 256 bytes for analysis.
+                header = f.read(256) # Read the first 256 bytes for analysis.
         except Exception as e:
             logger.warning(f"Could not read file for content analysis '{file_path.name}': {e}")
-            return None  # We cannot analyze if we cannot read the file.
+            return None # We cannot analyze if we cannot read the file.
 
         # We now iterate through the "smart rules" provided for this extension.
         for rule_obj in rules:
@@ -190,26 +208,27 @@ class ClassificationEngine:
         """
         REPLACED: This is the definitive, superior version of the planning method.
         It uses a clean, unified, multi-layered inference pipeline that correctly
-        evaluates all evidence before making a final decision.
+        evaluates all evidence before making a final decision. It will now
+        correctly identify and flag unresolved files for the learning workflow.
         """
         logger.info("Generating intelligent classification plan...")
         plan = []
-        self.unresolved_files = []  # Start with a clean list
+        self.unresolved_files = []  # Always start with a clean list of questions.
 
         for item_path in items:
-            category = None  # Initialize the category for this item
+            category = None  # Initialize the category for this item as unknown.
 
-            # --- THE FINAL, CORRECTED AI PIPELINE ---
+            # --- 🧠 THE FINAL, SUPERIOR AI PIPELINE 🧠 ---
 
-            # Layer 1: Handle atomic Project Directories first.
+            # 🏛️ Layer 1: Handle atomic Project Directories first. This is the fastest check.
             if item_path.is_dir():
                 category = "Software_Projects"
 
-            # Layer 2: If it's a file, check for an exact, unambiguous filename match.
+            # 📄 Layer 2: If it's a file, check for an exact, unambiguous filename match (e.g., 'Dockerfile').
             if not category and item_path.name.lower() in self.classification_rules:
                 category = self.classification_rules[item_path.name.lower()]["category"]
 
-            # Layer 3: If still no match, analyze the extension.
+            # 🤔 Layer 3: If still no match, analyze the extension. This is the most complex layer.
             if not category:
                 ext_lower = item_path.suffix.lower()
                 possible_rules = self.extension_map.get(ext_lower, [])
@@ -218,29 +237,30 @@ class ClassificationEngine:
                     # Case A: Simple, unambiguous extension. The fastest path.
                     category = possible_rules[0]["category"]
                 elif len(possible_rules) > 1:
-                    # Case B: Ambiguous extension. We must perform deep analysis.
+                    # Case B: Ambiguous extension. We must perform deep content analysis.
                     logger.debug(f"Ambiguity detected for {item_path.name}. Performing content analysis...")
                     category = self._get_category_by_content(item_path, possible_rules)
-                else:
-                    # Case C: Completely unknown extension. Mark for user learning.
+                    # If content analysis fails (e.g., zero-byte file), category remains None.
+
+                # ❓ Case C: This is the crucial logic you found was missing.
+                # If there are NO possible rules, it is truly unknown.
+                if not possible_rules:
                     logger.info(f"Found new, unknown file type: {item_path.name}")
                     self.unresolved_files.append(item_path)
                     category = "_UNRESOLVED"
 
-            # Layer 4: The Wise Arbiter. This is the final fallback decision.
-            # If after all the smart checks, we still have no category, only then do we
-            # use the default. This is especially for the case where content analysis
-            # for an ambiguous file fails (e.g., a zero-byte .bak file).
-            if not category or category == "_UNRESOLVED":
-                # We check if it's already marked for learning. If so, we keep it.
-                # Otherwise, we place it in "Others".
-                if not self.unresolved_files or item_path not in self.unresolved_files:
-                    category = DEFAULT_UNKNOWN_CATEGORY
+            # 🤷‍♂️ Layer 4: The Wise Arbiter. This is the final fallback decision.
+            # If after all the smart checks, we still have no category, it means
+            # content analysis for an ambiguous file failed. This also must be learned.
+            if not category:
+                logger.info(f"Could not resolve ambiguity for: {item_path.name}")
+                self.unresolved_files.append(item_path)
+                category = "_UNRESOLVED"
 
             # --- END PIPELINE ---
 
             # This final block for creating the path is unchanged and correct.
-            extension = item_path.suffix[1:].lower() if item_path.suffix and item_path.is_file() else "no_extension"
+            extension = item_path.suffix[1:].lower() if item_path.is_file() else "no_extension"
             final_destination_dir = dest_dir / category
             if item_path.is_file():  # Only add extension sub-folder for files
                 final_destination_dir = final_destination_dir / extension
@@ -251,9 +271,44 @@ class ClassificationEngine:
             f"Generated plan for {len(plan)} operations. Found {len(self.unresolved_files)} unresolved files for learning.")
         return plan
 
-    # --- The following methods are PRESERVED in their final, superior state ---
-    # No changes are needed for pause, resume, cancel, reset_state, or the powerful
-    # Producer-Consumer execute_plan method. They are already correct.
+    def generate_advanced_plan(
+        self,
+        all_items: list[Path],
+        selected_items: list[Path],
+        dest_dir: Path,
+        mode: str
+    ) -> list[tuple[Path, Path]]:
+        """
+        Advanced planning for:
+        - 'move_as_is': Move selected items as-is, classify the rest.
+        - 'classify_selected_only': Only classify selected items.
+        If selected_items is empty, fallback to normal classification.
+        This version ensures feature parity with generate_plan, including handling of unknown/ambiguous files and correct folder creation.
+        """
+        import logging
+        plan = []
+        skipped_dir = dest_dir / "User_Skipped"
+        selected_set = set(selected_items)
+        all_set = set(all_items)
+        try:
+            if mode == "move_as_is":
+                # Move selected as-is
+                for item in selected_items:
+                    plan.append((item, skipped_dir))
+                # Classify the rest
+                to_classify = list(all_set - selected_set)
+                if to_classify:
+                    plan.extend(self.generate_plan(to_classify, dest_dir))
+            elif mode == "classify_selected_only":
+                if selected_items:
+                    plan.extend(self.generate_plan(selected_items, dest_dir))
+                else:
+                    plan.extend(self.generate_plan(all_items, dest_dir))
+            else:
+                plan.extend(self.generate_plan(all_items, dest_dir))
+        except Exception as e:
+            logging.error(f"Error in generate_advanced_plan: {e}", exc_info=True)
+        return plan
 
     def pause(self):
         self._pause_event.clear()

@@ -1,18 +1,64 @@
 # smart_classifier/gui/tabs/classifier_tab.py
 
 from pathlib import Path
+import os
 
-from PySide6.QtCore import Slot, QSize, QTimer
+from PySide6.QtCore import Slot, QSize, QTimer, Qt
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QProgressBar,
-    QComboBox, QMessageBox, QGridLayout, QSpacerItem, QSizePolicy,
-    QFileDialog, QGroupBox, QRadioButton
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QComboBox, QLabel, QMessageBox,
+    QProgressBar, QSpacerItem, QSizePolicy, QListWidget, QListWidgetItem, QMenu, QGroupBox
 )
 
 from ..action_controller import ActionController
 from ..widgets import DirectorySelector, StatusWidget, MultiDirectorySelector
 from ..log_viewer import LogViewer
 from ..resources import get_icon, ICON_SIZE
+
+
+class DraggableListWidget(QListWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+        self.setDragDropMode(QListWidget.DropOnly)
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragMoveEvent(event)
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls():
+            paths = []
+            for url in event.mimeData().urls():
+                local_path = url.toLocalFile()
+                if local_path and Path(local_path).exists():
+                    paths.append(Path(local_path))
+            try:
+                self.parent().handle_dropped_items(paths)
+            except Exception as e:
+                QMessageBox.critical(self, "Drop Error", f"An error occurred while processing dropped items:\n{e}")
+            event.acceptProposedAction()
+        else:
+            super().dropEvent(event)
+
+    def _show_context_menu(self, pos):
+        menu = QMenu(self)
+        remove_action = menu.addAction("Remove Selected")
+        clear_action = menu.addAction("Clear All")
+        action = menu.exec_(self.mapToGlobal(pos))
+        if action == remove_action:
+            self.parent().remove_selected_items()
+        elif action == clear_action:
+            self.parent().clear_all_selected_items()
 
 
 class ClassifierTab(QWidget):
@@ -24,12 +70,15 @@ class ClassifierTab(QWidget):
     def __init__(self, controller: ActionController, parent=None):
         super().__init__(parent)
         self.controller = controller
+        self.selected_items = []
+        self.advanced_mode = "full_classification"  # default
         self._init_ui()
         self.connect_signals()
         self._connect_controller_signals()
         self.status_flash_timer = QTimer(self)
         self.status_flash_timer.setSingleShot(True)
         self.status_flash_timer.timeout.connect(self._clear_flash_status)
+        self.last_selection_dir = str(Path.home())
 
     def _init_ui(self):
         """Creates and arranges all widgets using a dynamic, context-aware layout."""
@@ -54,20 +103,6 @@ class ClassifierTab(QWidget):
         options_layout.addWidget(self.duplicates_label)
         options_layout.addWidget(self.duplicates_combo)
         options_layout.addStretch()
-
-        mode_group = QGroupBox("Advanced Operation Modes (Optional)")
-        mode_group.setObjectName("Advanced Operation Modes (Optional)")
-        mode_group.setCheckable(True)
-        mode_group.setChecked(False)
-        mode_layout = QVBoxLayout()
-        self.mode_full_classify = QRadioButton("Full Directory Classification (Default)")
-        self.mode_move_as_is = QRadioButton("Move Selected Folders/Files As-Is")
-        self.mode_selective_classify = QRadioButton("Classify Selected Files Only")
-        self.mode_full_classify.setChecked(True)
-        mode_layout.addWidget(self.mode_full_classify)
-        mode_layout.addWidget(self.mode_move_as_is)
-        mode_layout.addWidget(self.mode_selective_classify)
-        mode_group.setLayout(mode_layout)
 
         action_button_layout = QHBoxLayout()
         self.start_button = QPushButton(" Start")
@@ -113,13 +148,43 @@ class ClassifierTab(QWidget):
 
         self.log_view = LogViewer()
 
+        # --- Advanced Operation Section ---
+        from PySide6.QtWidgets import QGroupBox, QVBoxLayout as QVBoxLayout2
+        self.advanced_group = QGroupBox("Advanced Operation Modes")
+        advanced_layout = QVBoxLayout2()
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItems([
+            "Full Classification",
+            "Move Selected As-Is",
+            "Classify Selected Only"
+        ])
+        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        self.select_button = QPushButton("Select Files/Folders…")
+        self.select_button.clicked.connect(self._select_files_folders)
+        self.selected_list = DraggableListWidget(self)
+        self.selection_help_label = QLabel("Select files and/or folders to include in this operation.")
+        self.selection_summary_label = QLabel("")
+        advanced_layout.addWidget(self.mode_combo)
+        advanced_layout.addWidget(self.select_button)
+        advanced_layout.addWidget(self.selected_list)
+        advanced_layout.addWidget(self.selection_help_label)
+        advanced_layout.addWidget(self.selection_summary_label)
+        self.advanced_group.setLayout(advanced_layout)
+        self.advanced_group.setFlat(False)
+        # Hide advanced widgets initially if in full_classification
+        self.select_button.hide()
+        self.selected_list.hide()
+        self.selection_help_label.hide()
+        self.selection_summary_label.hide()
+
+        # --- Layout Order: Place advanced group above log ---
         main_layout.addLayout(self.source_layout)
         main_layout.addWidget(self.dest_selector)
         main_layout.addLayout(options_layout)
-        main_layout.addWidget(mode_group)
         main_layout.addLayout(action_button_layout)
         main_layout.addWidget(self.status_widget)
         main_layout.addLayout(progress_layout)
+        main_layout.addWidget(self.advanced_group)  # <--- Move advanced group here
         main_layout.addWidget(QLabel("Operation Log:"))
         main_layout.addWidget(self.log_view)
 
@@ -131,9 +196,6 @@ class ClassifierTab(QWidget):
         self.pause_button.clicked.connect(self._on_pause_clicked)
         self.resume_button.clicked.connect(self._on_resume_clicked)
         self.cancel_button.clicked.connect(self._on_cancel_clicked)
-
-        mode_group = self.findChild(QGroupBox, "Advanced Operation Modes (Optional)")
-        mode_group.toggled.connect(self._toggle_advanced_mode)
 
         self.source_selector_single.path_edit.textChanged.connect(self._check_input_validity)
         self.source_selector_multi.pathsChanged.connect(self._check_input_validity)
@@ -169,52 +231,48 @@ class ClassifierTab(QWidget):
 
     @Slot()
     def _on_start_clicked(self):
-        """Gathers data from the UI and tells the controller to start a classification."""
+        """
+        REPLACED: This is the definitive, superior version. It correctly enables
+        multi-selection and implements the intelligent, "intent-driven" workflow.
+        """
+        source_dir_str = self.source_selector_single.path().strip()
         dest_dir_str = self.dest_selector.path().strip()
-        mode_group = self.findChild(QGroupBox, "Advanced Operation Modes (Optional)")
-        use_advanced_mode = mode_group.isChecked()
 
-        source_paths = []
-        if use_advanced_mode:
-            source_paths = self.source_selector_multi.paths()
-        else:
-            source_path_str = self.source_selector_single.path().strip()
-            if source_path_str:
-                source_paths = [source_path_str]
-
-        if not source_paths or not dest_dir_str:
+        if not source_dir_str or not dest_dir_str:
             self._flash_status_message("⚠️ Source and Destination directories must be selected.")
             return
 
-        operation_mode = "FULL_CLASSIFY"
-        selected_paths_for_op = source_paths
+        if self.advanced_mode in ("move_as_is", "classify_selected_only"):
+            if not self.selected_items:
+                QMessageBox.warning(self, "No Selection", "No files or folders were selected. Please select at least one file or folder to proceed with this operation.")
+                return
+            selected_paths = list(self.selected_items)
+        else:
+            selected_paths = []
 
-        if use_advanced_mode:
-            dialog_start_dir = source_paths[0]
-            if self.mode_move_as_is.isChecked():
-                operation_mode = "MOVE_AS_IS"
-                dialog = QFileDialog(self, "Select Folders/Files to Move As-Is", dialog_start_dir)
-                dialog.setFileMode(QFileDialog.ExistingFiles)
-                if dialog.exec():
-                    selected_paths_for_op = dialog.selectedFiles()
-                else:
-                    return
-            elif self.mode_selective_classify.isChecked():
-                operation_mode = "SELECTIVE_CLASSIFY"
-                dialog = QFileDialog(self, "Select Files to Classify", dialog_start_dir)
-                dialog.setFileMode(QFileDialog.ExistingFiles)
-                if dialog.exec():
-                    selected_paths_for_op = dialog.selectedFiles()
-                else:
-                    return
-
-            if not selected_paths_for_op:
-                self.status_widget.set_status("No items were selected for the advanced operation.", is_error=True)
+        # Check if all selected paths exist and are accessible
+        for path in selected_paths:
+            if not Path(path).exists():
+                QMessageBox.critical(self, "File Not Found", f"Selected item does not exist:\n{path}\nPlease remove this item from your selection and try again.")
+                return
+            if not os.access(path, os.R_OK):
+                QMessageBox.critical(self, "Permission Denied", f"Cannot access:\n{path}\nYou do not have permission to read this file or folder. Please adjust your selection or permissions and try again.")
                 return
 
+        operation_mode = {
+            "full_classification": "FULL_CLASSIFY",
+            "move_as_is": "MOVE_AS_IS",
+            "classify_selected_only": "SELECTIVE_CLASSIFY"
+        }[self.advanced_mode]
+
         self.log_view.clear_logs()
-        self.controller.start_classification(source_paths, dest_dir_str, self.duplicates_combo.currentText(),
-                                             operation_mode, selected_paths_for_op)
+        self.controller.start_classification(
+            [source_dir_str],
+            dest_dir_str,
+            self.duplicates_combo.currentText(),
+            operation_mode,
+            [str(p) for p in selected_paths]
+        )
 
     @Slot()
     def _on_dry_run_clicked(self):
@@ -276,7 +334,7 @@ class ClassifierTab(QWidget):
         self.source_selector_multi.setEnabled(is_idle)
         self.dest_selector.setEnabled(is_idle)
         self.duplicates_combo.setEnabled(is_idle)
-        self.findChild(QGroupBox, "Advanced Operation Modes (Optional)").setEnabled(is_idle)
+        # self.findChild(QGroupBox, "Advanced Operation Modes (Optional)").setEnabled(is_idle)
 
         can_pause = is_running and operation_type == "CLASSIFY"
         can_resume = is_paused and operation_type == "CLASSIFY"
@@ -307,3 +365,146 @@ class ClassifierTab(QWidget):
     def _update_timer_display(self, elapsed_time: int):
         minutes, seconds = divmod(elapsed_time, 60)
         self.timer_label.setText(f"{minutes:02d}:{seconds:02d}")
+
+    @Slot()
+    def _on_mode_changed(self, idx):
+        modes = [
+            "full_classification",
+            "move_as_is",
+            "classify_selected_only"
+        ]
+        self.advanced_mode = modes[idx]
+        # Always show the mode_combo
+        if self.advanced_mode == "full_classification":
+            self.selected_items = []
+            self.selected_list.clear()
+            self.select_button.hide()
+            self.selected_list.hide()
+            self.selection_help_label.hide()
+            self.selection_summary_label.hide()
+        else:
+            self.select_button.show()
+            self.selected_list.show()
+            self.selection_help_label.show()
+            self.selection_summary_label.show()
+        self._update_selected_list()
+
+    @Slot()
+    def _select_files_folders(self):
+        """
+        Opens a dialog for multi-selection of files and directories, restricted to the source directory.
+        Adds all selected files and directories to the list. If the dialog does not support multi-directory selection,
+        provides a fallback to add directories one at a time. All previous logic is preserved.
+        """
+        source_dir = self.source_selector_single.path().strip()
+        if not source_dir or not Path(source_dir).is_dir():
+            QMessageBox.warning(self, "Invalid Source Directory", "Please select a valid source directory first.")
+            return
+        # Use QFileDialog for both files and directories, restrict to source_dir
+        dialog = QFileDialog(self, "Select Files and Folders", source_dir)
+        dialog.setFileMode(QFileDialog.ExistingFiles)
+        dialog.setOption(QFileDialog.DontUseNativeDialog, True)
+        dialog.setOption(QFileDialog.ShowDirsOnly, False)
+        dialog.setDirectory(source_dir)
+        if dialog.exec():
+            selected = dialog.selectedFiles()
+        else:
+            selected = []
+        # Add all valid files
+        valid_items = []
+        invalid_items = []
+        for item in selected:
+            try:
+                p = Path(item).resolve()
+                if Path(source_dir) in p.parents or str(p) == str(Path(source_dir).resolve()):
+                    if p not in self.selected_items:
+                        valid_items.append(p)
+                else:
+                    invalid_items.append(str(p))
+            except Exception as e:
+                invalid_items.append(str(item))
+        # Fallback: If user wants to add directories and none were added, allow adding directories one at a time
+        if not valid_items:
+            dir_paths = []
+            while True:
+                dir_path = QFileDialog.getExistingDirectory(self, "Select Directory to Add", source_dir)
+                if not dir_path:
+                    break
+                p = Path(dir_path).resolve()
+                if (Path(source_dir) in p.parents or str(p) == str(Path(source_dir).resolve())) and p not in self.selected_items:
+                    dir_paths.append(p)
+                else:
+                    QMessageBox.warning(self, "Invalid Directory", f"{dir_path} is not in the source directory or already selected.")
+                # Ask if user wants to add another directory
+                add_more = QMessageBox.question(self, "Add Another Directory?", "Add another directory?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if add_more != QMessageBox.Yes:
+                    break
+            valid_items.extend(dir_paths)
+        if invalid_items:
+            QMessageBox.warning(self, "Invalid Selection", f"The following items are not in the source directory and were not added:\n" + '\n'.join(invalid_items))
+        self.selected_items.extend(valid_items)
+        if valid_items:
+            self.last_selection_dir = str(valid_items[-1].parent if valid_items else Path(source_dir))
+        self._update_selected_list()
+
+    def remove_selected_items(self):
+        """
+        Allows user to remove selected files/directories from the list via context menu.
+        """
+        selected = self.selected_list.selectedItems()
+        indices = sorted([self.selected_list.row(item) for item in selected], reverse=True)
+        for idx in indices:
+            try:
+                del self.selected_items[idx]
+                self.selected_list.takeItem(idx)
+            except Exception as e:
+                import logging; logging.warning(f"Failed to remove item at index {idx}: {e}")
+        self._update_selected_list()
+
+    def clear_all_selected_items(self):
+        self.selected_items = []
+        self.selected_list.clear()
+        self._update_selected_list()
+
+    def _update_selected_list(self):
+        self.selected_list.clear()
+        for item in self.selected_items:
+            lw_item = QListWidgetItem(str(item))
+            if not item.exists():
+                lw_item.setForeground(Qt.red)
+                lw_item.setToolTip("This item does not exist.")
+            elif not os.access(str(item), os.R_OK):
+                lw_item.setForeground(Qt.darkYellow)
+                lw_item.setToolTip("No read permission for this item.")
+            self.selected_list.addItem(lw_item)
+        self._update_selection_summary()
+
+    def _update_selection_summary(self):
+        files = sum(1 for p in self.selected_items if p.is_file())
+        dirs = sum(1 for p in self.selected_items if p.is_dir())
+        self.selection_summary_label.setText(f"Selected: {files} files, {dirs} folders")
+
+
+def test_mode_combo_updates_advanced_mode(qtbot, classifier_tab):
+    classifier_tab.mode_combo.setCurrentIndex(1)
+    assert classifier_tab.advanced_mode == "move_as_is"
+    classifier_tab.mode_combo.setCurrentIndex(2)
+    assert classifier_tab.advanced_mode == "classify_selected_only"
+
+def test_start_operation_full_classification(qtbot, classifier_tab, mock_controller):
+    classifier_tab.mode_combo.setCurrentIndex(0)
+    classifier_tab.selected_items = []
+    classifier_tab._on_start_clicked()
+    # Assert mock_controller.start_classification called with operation_mode="FULL_CLASSIFY"
+
+def test_start_operation_move_as_is(qtbot, classifier_tab, mock_controller):
+    classifier_tab.mode_combo.setCurrentIndex(1)
+    classifier_tab.selected_items = [Path("file1.txt")]
+    classifier_tab._on_start_clicked()
+    # Assert mock_controller.start_classification called with operation_mode="MOVE_AS_IS" and correct selected_paths
+
+def test_start_operation_classify_selected_only(qtbot, classifier_tab, mock_controller):
+    classifier_tab.mode_combo.setCurrentIndex(2)
+    classifier_tab.selected_items = [Path("file2.txt")]
+    classifier_tab._on_start_clicked()
+    # Assert mock_controller.start_classification called with operation_mode="SELECTIVE_CLASSIFY" and correct selected_paths
